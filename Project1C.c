@@ -16,6 +16,7 @@ module Project1C @safe()
 		
 		//TODO update timers
 		interface Timer<TMilli> as ConnectTimer;
+		interface Timer<TMilli> as CheckConnectionTimer;
 	}
 }
 
@@ -124,28 +125,45 @@ implementation
 		isRadioLocked = FALSE;
 	}
 
+	void sendConnectMessage()
+	{
+		message_t packet;
+				
+		custom_msg_t* packet_payload = (custom_msg_t*)call Packet.getPayload(&packet, sizeof(custom_msg_t));
+		
+		if (packet_payload == NULL)
+		{
+			dbgerror("stdout","Node %d FAILED allocating a packed payload", TOS_NODE_ID);
+			return;
+		}
+		
+		packet_payload->Type = 0;
+		packet_payload->SenderId = TOS_NODE_ID;
+
+		SendPacket(PAN_COORDINATOR_ID, &packet);
+		call CheckConnectionTimer.startOneShot(TIMEOUT);
+	}
+
 
 	// This event will only be triggered once in the whole simulation since we start the ConnectTimer with the method: startOneShot(5000)
 	event void ConnectTimer.fired()
 	{
 		if (TOS_NODE_ID != PAN_COORDINATOR_ID)
 		{
-				message_t packet;
-				
-				custom_msg_t* packet_payload = (custom_msg_t*)call Packet.getPayload(&packet, sizeof(custom_msg_t));
-				
-				if (packet_payload == NULL)
-				{
-					dbgerror("stdout","Node %d FAILED allocating a packed payload", TOS_NODE_ID);
-					return;
-				}
-				
-				packet_payload->Type = 0;
-				packet_payload->SenderId = TOS_NODE_ID;
-
-				SendPacket(PAN_COORDINATOR_ID, &packet);
-				//TODO start check connack received oneshot timer
+			sendConnectMessage()
 		}
 	}
+
+	event void CheckConnectionTimer.fired()
+	{
+		if (connectionCompleted == FALSE)
+		{
+			sendConnectMessage()	
+		}
+	}
+
+	
+
+
 
 }

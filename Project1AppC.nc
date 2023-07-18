@@ -16,6 +16,8 @@ implementation
 
 	//TODO add as many timers as needed with useful names
 	components new TimerMilliC() as ConnectTimer;
+	components new TimerMilliC() as CheckConnectionTimer;
+
   
 	/****** INTERFACES *****/
   
@@ -28,4 +30,5 @@ implementation
 
 	//TODO timers updated
 	App.ConnectTimer -> ConnectTimer;
+	App.CheckConnectionTimer -> CheckConnectionTimer;
 }
