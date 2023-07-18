@@ -162,7 +162,71 @@ implementation
 		}
 	}
 
+
+	//*************************************************************************//
+
+	void receivedType0Logic(custom_msg_t *received_payload) {}
+	void receivedType1Logic(custom_msg_t *received_payload) {}
+	void receivedType2Logic(custom_msg_t *received_payload) {}
+	void receivedType3Logic(custom_msg_t *received_payload) {}
+	void receivedType4Logic(custom_msg_t *received_payload) {}	
 	
+	//*************************************************************************//
+
+
+
+
+	//parsing received packet
+	event message_t* Receive.receive(message_t* bufPtr, void* payload, uint8_t len)
+	{
+
+		custom_msg_t* packet_payload;
+		
+		if (len != sizeof(custom_msg_t)) 
+		{
+			dbgerror("stdout","Node %d received wrong lenght packet", TOS_NODE_ID);
+			return bufPtr;
+		}
+				
+
+		packet_payload = (custom_msg_t*)payload;
+		
+		dbg("stdout","Node %d received packet of Type %d\n", TOS_NODE_ID, packet_payload->Type);
+		
+		
+		
+		// Read the Type of the message received and call the correct function to handle the logic
+		if (packet_payload->Type == 0) //I received a connect message
+		{
+			receivedType0Logic(packet_payload);
+		}
+		
+		else if (packet_payload->Type == 1) //I received a con ack message
+		{
+			receivedType1Logic(packet_payload);
+		}
+		
+		else if (packet_payload->Type == 2) // I received a subscribe message
+		{
+			receivedType2Logic(packet_payload);
+		}
+
+		else if (packet_payload->Type == 3) // I received a sub ack message
+		{
+			receivedType3Logic(packet_payload);
+		}
+
+		else if (packet_payload->Type == 4) // I received a publish message
+		{
+			receivedType4Logic(packet_payload);
+		}
+
+
+		
+		return bufPtr;
+		
+    }
+
 
 
 
