@@ -6,8 +6,9 @@
 typedef nx_struct custom_msg
 {
 	nx_uint8_t Type;   // 0 = connect, 1 = connack, 2 = sub, 3 = suback, 4 = publish
-	nx_uint8_t SenderId;
-	nx_uint8_t Topic;  // 0 = temperature, 1 = humidity, 2 = luminosity
+	nx_uint16_t SenderId;
+	nx_bool SubscribeTopics[3]; // 0 = temperature, 1 = humidity, 2 = luminosity
+	nx_uint8_t Topic;  			// 0 = temperature, 1 = humidity, 2 = luminosity
 	nx_uint16_t Value;
 
 } custom_msg_t;

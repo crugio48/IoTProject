@@ -15,7 +15,7 @@ implementation
 	
 
 	//TODO add as many timers as needed with useful names
-	components new TimerMilliC() as Timer0;
+	components new TimerMilliC() as ConnectTimer;
   
 	/****** INTERFACES *****/
   
@@ -27,5 +27,5 @@ implementation
 	App.Packet -> AMSenderC;
 
 	//TODO timers updated
-	App.Timer0 -> Timer0;
+	App.ConnectTimer -> ConnectTimer;
 }
