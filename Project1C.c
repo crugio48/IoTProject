@@ -28,6 +28,8 @@ implementation
 
 	uint16_t PAN_COORDINATOR_ID = 1;	// Node 1 is the pan coordinator in the simulation
 
+	int MAX_SUBSCRIPTIONS = 30;
+
 	struct Subscriptions
 	{
 		uint16_t clientId;
@@ -35,7 +37,7 @@ implementation
 	};
 
 	// This array will be used by the pan coordinator only
-	struct Subscriptions subscriptions[30] = { {0,0} };
+	struct Subscriptions subscriptions[MAX_SUBSCRIPTIONS] = { {0,0} };
 
 	// This array will be used by the pan coordinator only
 	uint16_t connectedClients[10] = { 0 };
@@ -47,7 +49,6 @@ implementation
 
 	//Clients only status variables
 	bool connectionCompleted = FALSE;
-	bool subscriptionCompleted = FALSE;
 
 	
 
@@ -167,8 +168,91 @@ implementation
 
 	void receivedType0Logic(custom_msg_t *received_payload) {}
 	void receivedType1Logic(custom_msg_t *received_payload) {}
-	void receivedType2Logic(custom_msg_t *received_payload) {}
-	void receivedType3Logic(custom_msg_t *received_payload) {}
+
+
+	void SendSubackMessage(uint16 targetAddress)
+	{
+		message_t packet;
+				
+		custom_msg_t* packet_payload = (custom_msg_t*)call Packet.getPayload(&packet, sizeof(custom_msg_t));
+		
+		if (packet_payload == NULL)
+		{
+			dbgerror("stdout","Node %d FAILED allocating a packed payload", TOS_NODE_ID);
+			return;
+		}
+		
+		packet_payload->Type = 3;
+
+		SendPacket(targetAddress, &packet);
+	}
+
+
+	void SubscribeClientToTopic(uint16 clientId, uint8 topic)
+	{
+		for (int i = 0; i < MAX_SUBSCRIPTIONS; i++)
+		{
+			if (subscriptions[i].clientId == clientId && subscriptions[i].topic == topic)
+			{
+				dbg("stdout","Node %d sent a subscribe request for a topic he is already subscribed to", clientId);
+				return;
+			}
+
+			if (subscriptions[i].clientId == 0)
+			{
+				subscriptions[i].clientId = clientId;
+				subscriptions[i].topic = topic;
+				return;
+			}
+		}
+	}
+
+	void receivedType2Logic(custom_msg_t *received_payload)
+	{
+		if (TOS_NODE_ID != PAN_COORDINATOR_ID)
+		{
+			dbgerror("stdout","Node %d is not the pan coordinator and received a subscribe request", TOS_NODE_ID);
+			return;
+		}
+
+		uint16 senderId = received_payload->SenderId;
+
+		bool isClientConnected = FALSE;
+
+		for (int i = 0; i < 10 /*TODO change to max connections*/; i++)
+		{
+			if (connectedClients[i] == senderId) isClientConnected = TRUE;
+		}
+
+		if (!isClientConnected)
+		{
+			dbgerror("stdout","Node %d tryed to subscribe without being connected", senderId);
+			return;
+		}
+
+		if (received_payload->SubscribeTopics[0] == TRUE) SubscribeClientToTopic(senderId, 0);
+		
+		if (received_payload->SubscribeTopics[1] == TRUE) SubscribeClientToTopic(senderId, 1);
+
+		if (received_payload->SubscribeTopics[2] == TRUE) SubscribeClientToTopic(senderId, 2);
+		
+
+		SendSubackMessage(senderId);
+
+	}
+
+	void receivedType3Logic(custom_msg_t *received_payload)
+	{
+		if (TOS_NODE_ID == PAN_COORDINATOR_ID)
+		{
+			dbgerror("stdout","Node %d is the pan coordinator and received a SubAck", TOS_NODE_ID);
+			return;
+		}
+
+		call CheckSubscriptionTimer.stop();
+		
+	}
+
 	void receivedType4Logic(custom_msg_t *received_payload) {}	
 	
 	//*************************************************************************//
