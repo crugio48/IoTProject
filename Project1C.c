@@ -211,6 +211,16 @@ implementation
 		SendPacket(targetAddress, &packet);
 	}
 
+	void forwardPublishMessage(custom_msg_t* payload_to_forward, uint16 targetAddress){
+
+		message_t packet;
+		payload_to_forward = (custom_msg_t*)call Packet.getPayload(&packet, sizeof(custom_msg_t));
+
+		SendPacket(targetAddress, &packet);
+		
+
+	}
+
 	void sendPublishMessage()
 	{
 		message_t packet;
@@ -267,7 +277,7 @@ implementation
 			}
 			if (connectedClients[i] == 0){
 				connectedClients[i] = cliendId;
-				dbgerror("stdout","the client %d was added to the connected clients of the PAN COORD\n", cliendId);
+				dbg("stdout","the client %d was added to the connected clients of the PAN COORD\n", cliendId);
 				return;
 			}
 		}
@@ -359,7 +369,7 @@ implementation
 	{
 		if (TOS_NODE_ID == PAN_COORDINATOR_ID)
 		{
-			dbgerror("stdout","Node %d is the pan coordinator and received a SubAck", TOS_NODE_ID);
+			dbgerror("stdout","Node %d is the pan coordinator and received a SubAck\n", TOS_NODE_ID);
 			return;
 		}
 
@@ -367,7 +377,22 @@ implementation
 		
 	}
 
-	void receivedType4Logic(custom_msg_t *received_payload) {}	
+	void receivedType4Logic(custom_msg_t *received_payload) {
+		if (TOS_NODE_ID == PAN_COORDINATOR_ID){
+			//forward the publish to all the subscribed at that topic
+			int i;
+			for (i=0; i < MAX_SUBSCRIPTIONS; i++){
+				if (subscriptions[i].cliendId != received_payload->SenderId && subscriptions[i].cliendId != 0 && subscriptions[i].topic == received_payload->Topic){
+					forwardPublishMessage(received_payload, subscriptions[i].cliendId);
+				}
+			}
+
+		}
+		else{
+			dbg("stdout","Client %d received publish. Topic: %d, Value: %d\n", TOS_NODE_ID, received_payload->Topic, received_payload->Value);
+		}
+
+	}	
 	
 	//*************************************************************************//
 
