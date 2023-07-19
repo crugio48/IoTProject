@@ -17,6 +17,10 @@ implementation
 	//TODO add as many timers as needed with useful names
 	components new TimerMilliC() as ConnectTimer;
 	components new TimerMilliC() as CheckConnectionTimer;
+	components new TimerMilliC() as PublishTimer;		
+	components new TimerMilliC() as CheckSubscriptionTimer;		
+			
+
 
   
 	/****** INTERFACES *****/
@@ -31,4 +35,6 @@ implementation
 	//TODO timers updated
 	App.ConnectTimer -> ConnectTimer;
 	App.CheckConnectionTimer -> CheckConnectionTimer;
+	App.PublishTimer -> PublishTimer;
+	App.CheckSubscriptionTimer -> CheckSubscriptionTimer;
 }
