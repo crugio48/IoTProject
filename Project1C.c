@@ -17,6 +17,8 @@ module Project1C @safe()
 		//TODO update timers
 		interface Timer<TMilli> as ConnectTimer;
 		interface Timer<TMilli> as CheckConnectionTimer;
+		interface Timer<TMilli> as PublishTimer; 
+		interface Timer<TMIlli> as CheckSubscriptionTimer;
 	}
 }
 
@@ -26,7 +28,11 @@ implementation
 	message_t* sentPacket;
 	bool isRadioLocked = FALSE;
 
+	uint16_t MY_PUBLISH_TOPIC = 0; 		//TODO: just for testing will be random btw 0 and 2
+
 	uint16_t PAN_COORDINATOR_ID = 1;	// Node 1 is the pan coordinator in the simulation
+	uint16_t MAX_CLIENTS = 10;
+	uint16_t PUBLISH_INTERVAL = 5000;
 
 	struct Subscriptions
 	{
@@ -38,7 +44,7 @@ implementation
 	struct Subscriptions subscriptions[30] = { {0,0} };
 
 	// This array will be used by the pan coordinator only
-	uint16_t connectedClients[10] = { 0 };
+	uint16_t connectedClients[MAX_CLIENTS] = { 0 };
 
 
 	// Timeout time if no ack is received
@@ -46,7 +52,6 @@ implementation
 
 
 	//Clients only status variables
-	bool connectionCompleted = FALSE;
 	bool subscriptionCompleted = FALSE;
 
 	
@@ -144,29 +149,139 @@ implementation
 		call CheckConnectionTimer.startOneShot(TIMEOUT);
 	}
 
+	void sendConAckMessage(uint16_t cliendId)
+	{
+		message_t packet;
+				
+		custom_msg_t* packet_payload = (custom_msg_t*)call Packet.getPayload(&packet, sizeof(custom_msg_t));
+		
+		if (packet_payload == NULL)
+		{
+			dbgerror("stdout","Node %d FAILED allocating a packed payload", TOS_NODE_ID);
+			return;
+		}
+		
+		packet_payload->Type = 1;
+		packet_payload->SenderId = TOS_NODE_ID;
+
+		SendPacket(cliendId , &packet);
+	}
+
+	void sendSubscribeMessage()
+	{
+		message_t packet;
+				
+		custom_msg_t* packet_payload = (custom_msg_t*)call Packet.getPayload(&packet, sizeof(custom_msg_t));
+		
+		if (packet_payload == NULL)
+		{
+			dbgerror("stdout","Node %d FAILED allocating a packed payload", TOS_NODE_ID);
+			return;
+		}
+		
+		packet_payload->Type = 2;
+		packet_payload->SenderId = TOS_NODE_ID;
+
+		packet_payload->SubscribeTopics[0] = TRUE; //TODO: put random topics to subscribe
+		packet_payload->SubscribeTopics[1] = TRUE;
+		packet_payload->SubscribeTopics[2] = TRUE;
+
+
+		SendPacket(PAN_COORDINATOR_ID, &packet);
+		call CheckSubscriptionTimer.startOneShot(TIMEOUT);
+	}
+
+	void sendPublishMessage()
+	{
+		message_t packet;
+				
+		custom_msg_t* packet_payload = (custom_msg_t*)call Packet.getPayload(&packet, sizeof(custom_msg_t));
+		
+		if (packet_payload == NULL)
+		{
+			dbgerror("stdout","Node %d FAILED allocating a packed payload", TOS_NODE_ID);
+			return;
+		}
+		
+		packet_payload->Type = 4;
+		packet_payload->SenderId = TOS_NODE_ID;
+		packet_payload->Topic = MY_PUBLISH_TOPIC; //TODO: put random topic
+		packet_payload->Value = 27; //TODO: put random value
+
+		SendPacket(PAN_COORDINATOR_ID, &packet);
+	}
+
+
 
 	// This event will only be triggered once in the whole simulation since we start the ConnectTimer with the method: startOneShot(5000)
 	event void ConnectTimer.fired()
 	{
 		if (TOS_NODE_ID != PAN_COORDINATOR_ID)
 		{
-			sendConnectMessage()
+			sendConnectMessage();
 		}
 	}
 
 	event void CheckConnectionTimer.fired()
 	{
-		if (connectionCompleted == FALSE)
-		{
-			sendConnectMessage()	
+		sendConnectMessage();	
+	}
+
+	event void CheckSubscriptionTimer.fired()
+	{
+		sendSubscribeMessage();
+	}
+
+	event void PublishTimer.fired()
+	{
+		sendPublishMessage();
+	}
+
+	void updateConnectedClients(uint16_t *connectedClients, uint16_t cliendId){
+		int i = 0;
+		for (i=0; i < MAX_CLIENTS; i++){
+			if (connectedClients[i] == cliendId){
+				//debug: the client is already connected...
+				dbgerror("stdout","the client %d is already connected to the PAN COORD\n", cliendId);
+				return;
+			}
+			if (connectedClients[i] == 0){
+				connectedClients[i] = cliendId;
+				dbgerror("stdout","the client %d was added to the connected clients of the PAN COORD\n", cliendId);
+				return;
+			}
 		}
 	}
 
-
 	//*************************************************************************//
 
-	void receivedType0Logic(custom_msg_t *received_payload) {}
-	void receivedType1Logic(custom_msg_t *received_payload) {}
+	void receivedType0Logic(custom_msg_t *received_payload) {		
+		//check if I am the PAN coordinator, otherwise I shouldn't have received the message 
+		if (TOS_NODE_ID != PAN_COORDINATOR_ID) {
+			dbgerror("stdout","Node %d received a CON message but it is not a PAN COORD\n", TOS_NODE_ID);
+			return;
+		}
+		//I am the PAN coordinator update of the connected clients...
+		//parsing the message and adding to the connected clients the clientId of the client that sent the message
+
+		updateConnectedClients(connectedClients, received_payload->SenderId);
+		
+		sendConAckMessage(received_payload->SenderId);
+
+	}
+
+	void receivedType1Logic(custom_msg_t *received_payload) {
+
+		//conn ack received the connection is completed
+		call CheckConnectionTimer.stop();
+
+		call PublishTimer.startPeriodic(PUBLISH_INTERVAL);
+
+		sendSubscribeMessage();
+
+	}
+
+
 	void receivedType2Logic(custom_msg_t *received_payload) {}
 	void receivedType3Logic(custom_msg_t *received_payload) {}
 	void receivedType4Logic(custom_msg_t *received_payload) {}	
