@@ -194,6 +194,23 @@ implementation
 		call CheckSubscriptionTimer.startOneShot(TIMEOUT);
 	}
 
+	void SendSubackMessage(uint16 targetAddress)
+	{
+		message_t packet;
+				
+		custom_msg_t* packet_payload = (custom_msg_t*)call Packet.getPayload(&packet, sizeof(custom_msg_t));
+		
+		if (packet_payload == NULL)
+		{
+			dbgerror("stdout","Node %d FAILED allocating a packed payload", TOS_NODE_ID);
+			return;
+		}
+		
+		packet_payload->Type = 3;
+
+		SendPacket(targetAddress, &packet);
+	}
+
 	void sendPublishMessage()
 	{
 		message_t packet;
@@ -256,27 +273,6 @@ implementation
 		}
 	}
 
-	//*************************************************************************//
-
-
-	void SendSubackMessage(uint16 targetAddress)
-	{
-		message_t packet;
-				
-		custom_msg_t* packet_payload = (custom_msg_t*)call Packet.getPayload(&packet, sizeof(custom_msg_t));
-		
-		if (packet_payload == NULL)
-		{
-			dbgerror("stdout","Node %d FAILED allocating a packed payload", TOS_NODE_ID);
-			return;
-		}
-		
-		packet_payload->Type = 3;
-
-		SendPacket(targetAddress, &packet);
-	}
-
-
 	void SubscribeClientToTopic(uint16 clientId, uint8 topic)
 	{
 		for (int i = 0; i < MAX_SUBSCRIPTIONS; i++)
@@ -295,6 +291,35 @@ implementation
 			}
 		}
 	}
+
+	//*************************************************************************//
+
+	void receivedType0Logic(custom_msg_t *received_payload) {		
+		//check if I am the PAN coordinator, otherwise I shouldn't have received the message 
+		if (TOS_NODE_ID != PAN_COORDINATOR_ID) {
+			dbgerror("stdout","Node %d received a CON message but it is not a PAN COORD\n", TOS_NODE_ID);
+			return;
+		}
+		//I am the PAN coordinator update of the connected clients...
+		//parsing the message and adding to the connected clients the clientId of the client that sent the message
+
+		updateConnectedClients(connectedClients, received_payload->SenderId);
+		
+		sendConAckMessage(received_payload->SenderId);
+
+	}
+
+	void receivedType1Logic(custom_msg_t *received_payload) {
+
+		//conn ack received the connection is completed
+		call CheckConnectionTimer.stop();
+
+		call PublishTimer.startPeriodic(PUBLISH_INTERVAL);
+
+		sendSubscribeMessage();
+
+	}
+
 
 	void receivedType2Logic(custom_msg_t *received_payload)
 	{
@@ -340,32 +365,6 @@ implementation
 
 		call CheckSubscriptionTimer.stop();
 		
-	}
-
-	void receivedType0Logic(custom_msg_t *received_payload) {		
-		//check if I am the PAN coordinator, otherwise I shouldn't have received the message 
-		if (TOS_NODE_ID != PAN_COORDINATOR_ID) {
-			dbgerror("stdout","Node %d received a CON message but it is not a PAN COORD\n", TOS_NODE_ID);
-			return;
-		}
-		//I am the PAN coordinator update of the connected clients...
-		//parsing the message and adding to the connected clients the clientId of the client that sent the message
-
-		updateConnectedClients(connectedClients, received_payload->SenderId);
-		
-		sendConAckMessage(received_payload->SenderId);
-
-	}
-
-	void receivedType1Logic(custom_msg_t *received_payload) {
-
-		//conn ack received the connection is completed
-		call CheckConnectionTimer.stop();
-
-		call PublishTimer.startPeriodic(PUBLISH_INTERVAL);
-
-		sendSubscribeMessage();
-
 	}
 
 	void receivedType4Logic(custom_msg_t *received_payload) {}	
