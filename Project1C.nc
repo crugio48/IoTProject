@@ -20,6 +20,8 @@ module Project1C @safe()
 		interface Timer<TMilli> as CheckConnectionTimer;
 		interface Timer<TMilli> as PublishTimer; 
 		interface Timer<TMIlli> as CheckSubscriptionTimer;
+		interface Timer<TMIlli> as NodeRedTimer;
+
 	}
 }
 
@@ -37,6 +39,8 @@ implementation
 
 	int MAX_SUBSCRIPTIONS = 30;
 
+	int NUM_OF_TOPICS = 3;
+
 	struct Subscriptions
 	{
 		uint16_t clientId;
@@ -48,6 +52,9 @@ implementation
 
 	// This array will be used by the pan coordinator only
 	uint16_t connectedClients[MAX_CLIENTS] = { 0 };
+
+	// This array will be used by the pan coordinator only
+	uint16_t latestValues[NUM_OF_TOPICS] = { 0 };
 
 
 	// Timeout time if no ack is received
@@ -74,7 +81,18 @@ implementation
 		if (err == SUCCESS)
 		{
 			printf("Radio of node %d started.\n", TOS_NODE_ID);
-			call ConnectTimer.startOneShot(5000);
+
+
+			if (TOS_NODE_ID != PAN_COORDINATOR_ID)
+			{
+				call ConnectTimer.startOneShot(5000);
+			}
+
+			if (TOS_NODE_ID == PAN_COORDINATOR_ID)
+			{
+				call NodeRedTimer.startPeriodic(5000);
+			}
+
 		}
 		else
 		{
@@ -247,10 +265,7 @@ implementation
 	// This event will only be triggered once in the whole simulation since we start the ConnectTimer with the method: startOneShot(5000)
 	event void ConnectTimer.fired()
 	{
-		if (TOS_NODE_ID != PAN_COORDINATOR_ID)
-		{
-			sendConnectMessage();
-		}
+		sendConnectMessage();
 	}
 
 	event void CheckConnectionTimer.fired()
@@ -266,6 +281,16 @@ implementation
 	event void PublishTimer.fired()
 	{
 		sendPublishMessage();
+	}
+
+
+	event void NodeRedTimer.fired()
+	{
+		for(int i = 0; i < NUM_OF_TOPICS; i++)
+		{
+			printf("%d:%d\n", i, latestValues[i]);
+		}
+		pritfflush();
 	}
 
 	void updateConnectedClients(uint16_t *connectedClients, uint16_t cliendId){
@@ -382,11 +407,14 @@ implementation
 		if (TOS_NODE_ID == PAN_COORDINATOR_ID){
 			//forward the publish to all the subscribed at that topic
 			int i;
-			for (i=0; i < MAX_SUBSCRIPTIONS; i++){
+			for (i=0; i < MAX_SUBSCRIPTIONS; i++)
+			{
 				if (subscriptions[i].cliendId != received_payload->SenderId && subscriptions[i].cliendId != 0 && subscriptions[i].topic == received_payload->Topic){
 					forwardPublishMessage(received_payload, subscriptions[i].cliendId);
 				}
 			}
+
+			latestValues[received_payload->Topic] = received_payload->Value;
 
 		}
 		else{
