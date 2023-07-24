@@ -1,4 +1,5 @@
 
+#include "printf.h"
 #include "Timer.h"
 #include "message.h"
 
@@ -72,7 +73,7 @@ implementation
 	{
 		if (err == SUCCESS)
 		{
-			dbg("stdout","Radio of node %d started.\n", TOS_NODE_ID);
+			printf("Radio of node %d started.\n", TOS_NODE_ID);
 			call ConnectTimer.startOneShot(5000);
 		}
 		else
