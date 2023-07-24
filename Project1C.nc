@@ -3,6 +3,12 @@
 #include "Timer.h"
 #include "message.h"
 
+#define MAX_SUBSCRIPTIONS 30
+
+#define NUM_OF_TOPICS 3
+
+#define MAX_CLIENTS 10
+
 
 module Project1C @safe()
 {
@@ -19,8 +25,8 @@ module Project1C @safe()
 		interface Timer<TMilli> as ConnectTimer;
 		interface Timer<TMilli> as CheckConnectionTimer;
 		interface Timer<TMilli> as PublishTimer; 
-		interface Timer<TMIlli> as CheckSubscriptionTimer;
-		interface Timer<TMIlli> as NodeRedTimer;
+		interface Timer<TMilli> as CheckSubscriptionTimer;
+		interface Timer<TMilli> as NodeRedTimer;
 
 	}
 }
@@ -34,12 +40,8 @@ implementation
 	uint16_t MY_PUBLISH_TOPIC = 0; 		//TODO: just for testing will be random btw 0 and 2
 
 	uint16_t PAN_COORDINATOR_ID = 1;	// Node 1 is the pan coordinator in the simulation
-	uint16_t MAX_CLIENTS = 10;
+	
 	uint16_t PUBLISH_INTERVAL = 5000;
-
-	int MAX_SUBSCRIPTIONS = 30;
-
-	int NUM_OF_TOPICS = 3;
 
 	struct Subscriptions
 	{
@@ -213,7 +215,7 @@ implementation
 		call CheckSubscriptionTimer.startOneShot(TIMEOUT);
 	}
 
-	void SendSubackMessage(uint16 targetAddress)
+	void SendSubackMessage(uint16_t targetAddress)
 	{
 		message_t packet;
 				
@@ -230,7 +232,7 @@ implementation
 		SendPacket(targetAddress, &packet);
 	}
 
-	void forwardPublishMessage(custom_msg_t* payload_to_forward, uint16 targetAddress){
+	void forwardPublishMessage(custom_msg_t* payload_to_forward, uint16_t targetAddress){
 
 		message_t packet;
 		payload_to_forward = (custom_msg_t*)call Packet.getPayload(&packet, sizeof(custom_msg_t));
@@ -286,11 +288,13 @@ implementation
 
 	event void NodeRedTimer.fired()
 	{
-		for(int i = 0; i < NUM_OF_TOPICS; i++)
+		int i;
+		
+		for(i = 0; i < NUM_OF_TOPICS; i++)
 		{
 			printf("%d:%d\n", i, latestValues[i]);
 		}
-		pritfflush();
+		printfflush();
 	}
 
 	void updateConnectedClients(uint16_t *connectedClients, uint16_t cliendId){
@@ -309,9 +313,11 @@ implementation
 		}
 	}
 
-	void SubscribeClientToTopic(uint16 clientId, uint8 topic)
+	void SubscribeClientToTopic(uint16_t clientId, uint8_t topic)
 	{
-		for (int i = 0; i < MAX_SUBSCRIPTIONS; i++)
+		int i;
+		
+		for (i = 0; i < MAX_SUBSCRIPTIONS; i++)
 		{
 			if (subscriptions[i].clientId == clientId && subscriptions[i].topic == topic)
 			{
@@ -359,17 +365,23 @@ implementation
 
 	void receivedType2Logic(custom_msg_t *received_payload)
 	{
+		uint16_t senderId;
+		
+		bool isClientConnected;
+		
+		int i;
+	
 		if (TOS_NODE_ID != PAN_COORDINATOR_ID)
 		{
 			dbgerror("stdout","Node %d is not the pan coordinator and received a subscribe request", TOS_NODE_ID);
 			return;
 		}
 
-		uint16 senderId = received_payload->SenderId;
+		senderId = received_payload->SenderId;
 
-		bool isClientConnected = FALSE;
+		isClientConnected = FALSE;
 
-		for (int i = 0; i < 10 /*TODO change to max connections*/; i++)
+		for (i = 0; i < 10 /*TODO change to max connections*/; i++)
 		{
 			if (connectedClients[i] == senderId) isClientConnected = TRUE;
 		}
@@ -409,8 +421,8 @@ implementation
 			int i;
 			for (i=0; i < MAX_SUBSCRIPTIONS; i++)
 			{
-				if (subscriptions[i].cliendId != received_payload->SenderId && subscriptions[i].cliendId != 0 && subscriptions[i].topic == received_payload->Topic){
-					forwardPublishMessage(received_payload, subscriptions[i].cliendId);
+				if (subscriptions[i].clientId != received_payload->SenderId && subscriptions[i].clientId != 0 && subscriptions[i].topic == received_payload->Topic){
+					forwardPublishMessage(received_payload, subscriptions[i].clientId);
 				}
 			}
 
