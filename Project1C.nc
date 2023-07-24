@@ -72,7 +72,7 @@ implementation
 	
 	event void Boot.booted()
 	{
-		dbg("stdout","Application of node %d booted.\n", TOS_NODE_ID);
+		printf("Application of node %d booted.\n", TOS_NODE_ID);
 
 		call AMControl.start();
 	}
@@ -104,7 +104,7 @@ implementation
 
 	event void AMControl.stopDone(error_t err)
 	{
-		dbg("stdout","Radio of node %d stopped.\n", TOS_NODE_ID);
+		printf("Radio of node %d stopped.\n", TOS_NODE_ID);
 		// do nothing
 	}
 
@@ -116,7 +116,7 @@ implementation
 		
 		if (isRadioLocked)
 		{
-			dbg("stdout","Node %d found the radio locked so did not send a packet of Type %d", TOS_NODE_ID, packet_payload->Type, address);
+			printf("WARNING: Node %d found radio locked so did not send a packet of Type %d\n", TOS_NODE_ID, packet_payload->Type, address);
 			return;
 		}
 
@@ -126,11 +126,11 @@ implementation
 			sentPacket = packet;
 			isRadioLocked = TRUE;			// lock the radio
 
-			dbg("stdout","Node %d sending packet of Type %d to address %d\n", TOS_NODE_ID, packet_payload->Type, address);
+			printf("Node %d sending packet of Type %d to address %d\n", TOS_NODE_ID, packet_payload->Type, address);
 		}
 		else
 		{
-			dbgerror("stdout","Node %d FAILED sending packet of Type %d to address %d in AMSend.send\n", TOS_NODE_ID,  packet_payload->Type, address);
+			printf("ERROR: Node %d failed sending packet of Type %d to address %d in AMSend.send\n", TOS_NODE_ID,  packet_payload->Type, address);
 		}
 
 	}
@@ -144,11 +144,11 @@ implementation
 		// Unlock the radio if send is done correctly
 		if (error == SUCCESS && sentPacket == bufPtr)
 		{
-			dbg("stdout","Node %d sent packet of Type %d successfully\n", TOS_NODE_ID, packet_payload->Type);
+			printf("Node %d sent packet of Type %d successfully\n", TOS_NODE_ID, packet_payload->Type);
 		}
 		else
 		{
-			dbgerror("stdout","Node %d FAILED sending packet of Type %d in AMSend.sendDone\n", TOS_NODE_ID, packet_payload->Type);
+			printf("ERROR: Node %d failed sending packet of Type %d in AMSend.sendDone\n", TOS_NODE_ID, packet_payload->Type);
 		}
 
 		isRadioLocked = FALSE;
@@ -162,7 +162,7 @@ implementation
 		
 		if (packet_payload == NULL)
 		{
-			dbgerror("stdout","Node %d FAILED allocating a packed payload", TOS_NODE_ID);
+			printf("ERROR: Node %d failed allocating a packed payload\n", TOS_NODE_ID);
 			return;
 		}
 		
@@ -181,7 +181,7 @@ implementation
 		
 		if (packet_payload == NULL)
 		{
-			dbgerror("stdout","Node %d FAILED allocating a packed payload", TOS_NODE_ID);
+			printf("ERROR: Node %d failed allocating a packed payload\n", TOS_NODE_ID);
 			return;
 		}
 		
@@ -199,7 +199,7 @@ implementation
 		
 		if (packet_payload == NULL)
 		{
-			dbgerror("stdout","Node %d FAILED allocating a packed payload", TOS_NODE_ID);
+			printf("ERROR: Node %d failed allocating a packed payload\n", TOS_NODE_ID);
 			return;
 		}
 		
@@ -223,7 +223,7 @@ implementation
 		
 		if (packet_payload == NULL)
 		{
-			dbgerror("stdout","Node %d FAILED allocating a packed payload", TOS_NODE_ID);
+			printf("ERROR: Node %d failed allocating a packed payload\n", TOS_NODE_ID);
 			return;
 		}
 		
@@ -250,7 +250,7 @@ implementation
 		
 		if (packet_payload == NULL)
 		{
-			dbgerror("stdout","Node %d FAILED allocating a packed payload", TOS_NODE_ID);
+			printf("ERROR: Node %d failed allocating a packed payload\n", TOS_NODE_ID);
 			return;
 		}
 		
@@ -290,6 +290,8 @@ implementation
 	{
 		int i;
 		
+		printf("Node %d is sending the periodic update to node red\n", TOS_NODE_ID);
+
 		for(i = 0; i < NUM_OF_TOPICS; i++)
 		{
 			printf("%d:%d\n", i, latestValues[i]);
@@ -297,17 +299,17 @@ implementation
 		printfflush();
 	}
 
-	void updateConnectedClients(uint16_t *connectedClients, uint16_t cliendId){
+	void updateConnectedClients(uint16_t *connectedClients, uint16_t clientId){
 		int i = 0;
 		for (i=0; i < MAX_CLIENTS; i++){
-			if (connectedClients[i] == cliendId){
+			if (connectedClients[i] == clientId){
 				//debug: the client is already connected...
-				dbgerror("stdout","the client %d is already connected to the PAN COORD\n", cliendId);
+				printf("ERROR: The client %d is already connected to the PAN COORD\n", clientId);
 				return;
 			}
 			if (connectedClients[i] == 0){
-				connectedClients[i] = cliendId;
-				dbg("stdout","the client %d was added to the connected clients of the PAN COORD\n", cliendId);
+				connectedClients[i] = clientId;
+				printf("The client %d was added to the connected clients of the PAN COORD\n", clientId);
 				return;
 			}
 		}
@@ -321,7 +323,7 @@ implementation
 		{
 			if (subscriptions[i].clientId == clientId && subscriptions[i].topic == topic)
 			{
-				dbg("stdout","Node %d sent a subscribe request for a topic he is already subscribed to", clientId);
+				printf("ERROR: The client %d sent a subscribe request for a topic he is already subscribed to\n", clientId);
 				return;
 			}
 
@@ -329,6 +331,7 @@ implementation
 			{
 				subscriptions[i].clientId = clientId;
 				subscriptions[i].topic = topic;
+				printf("The client %d subscribed to topic %d\n", clientId, topic);
 				return;
 			}
 		}
@@ -339,7 +342,7 @@ implementation
 	void receivedType0Logic(custom_msg_t *received_payload) {		
 		//check if I am the PAN coordinator, otherwise I shouldn't have received the message 
 		if (TOS_NODE_ID != PAN_COORDINATOR_ID) {
-			dbgerror("stdout","Node %d received a CON message but it is not a PAN COORD\n", TOS_NODE_ID);
+			printf("ERROR: Node %d received a CON message but it is not a PAN COORD\n", TOS_NODE_ID);
 			return;
 		}
 		//I am the PAN coordinator update of the connected clients...
@@ -373,7 +376,7 @@ implementation
 	
 		if (TOS_NODE_ID != PAN_COORDINATOR_ID)
 		{
-			dbgerror("stdout","Node %d is not the pan coordinator and received a subscribe request", TOS_NODE_ID);
+			printf("ERROR: Node %d is not the pan coordinator and received a subscribe request\n", TOS_NODE_ID);
 			return;
 		}
 
@@ -388,7 +391,7 @@ implementation
 
 		if (!isClientConnected)
 		{
-			dbgerror("stdout","Node %d tryed to subscribe without being connected", senderId);
+			printf("ERROR: Node %d tried to subscribe without being connected\n", senderId);
 			return;
 		}
 
@@ -407,7 +410,7 @@ implementation
 	{
 		if (TOS_NODE_ID == PAN_COORDINATOR_ID)
 		{
-			dbgerror("stdout","Node %d is the pan coordinator and received a SubAck\n", TOS_NODE_ID);
+			printf("ERROR: Node %d is the pan coordinator and received a SubAck\n", TOS_NODE_ID);
 			return;
 		}
 
@@ -430,7 +433,7 @@ implementation
 
 		}
 		else{
-			dbg("stdout","Client %d received publish. Topic: %d, Value: %d\n", TOS_NODE_ID, received_payload->Topic, received_payload->Value);
+			printf("Client %d received publish. Topic: %d, Value: %d\n", TOS_NODE_ID, received_payload->Topic, received_payload->Value);
 		}
 
 	}	
@@ -448,14 +451,14 @@ implementation
 		
 		if (len != sizeof(custom_msg_t)) 
 		{
-			dbgerror("stdout","Node %d received wrong lenght packet", TOS_NODE_ID);
+			printf("ERROR: Node %d received wrong lenght packet\n", TOS_NODE_ID);
 			return bufPtr;
 		}
 				
 
 		packet_payload = (custom_msg_t*)payload;
 		
-		dbg("stdout","Node %d received packet of Type %d\n", TOS_NODE_ID, packet_payload->Type);
+		printf("Node %d received packet of Type %d\n", TOS_NODE_ID, packet_payload->Type);
 		
 		
 		
