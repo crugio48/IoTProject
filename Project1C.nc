@@ -46,7 +46,7 @@ implementation
 	struct Subscriptions
 	{
 		uint16_t clientId;
-		uint8_t topic;
+		uint16_t topic;
 	};
 
 	// This array will be used by the pan coordinator only
@@ -87,12 +87,12 @@ implementation
 
 			if (TOS_NODE_ID != PAN_COORDINATOR_ID)
 			{
-				call ConnectTimer.startOneShot(5000);
+				call ConnectTimer.startOneShot(4000);
 			}
 
 			if (TOS_NODE_ID == PAN_COORDINATOR_ID)
 			{
-				call NodeRedTimer.startPeriodic(5000);
+				call NodeRedTimer.startPeriodic(6000);
 			}
 
 		}
@@ -315,7 +315,7 @@ implementation
 		}
 	}
 
-	void SubscribeClientToTopic(uint16_t clientId, uint8_t topic)
+	void SubscribeClientToTopic(uint16_t clientId, uint16_t topic)
 	{
 		int i;
 		
