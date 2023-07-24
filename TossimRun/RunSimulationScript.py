@@ -9,6 +9,8 @@ import time
 
 from TOSSIM import *
 
+NUM_OF_NODES = 2
+
 t = Tossim([])
 
 
@@ -42,7 +44,7 @@ t.addChannel("simulation", simulation_out)
 bootTime = 0
 
 
-for i in range(1, 10):
+for i in range(1, NUM_OF_NODES + 1):
     print("Creating node " + i + "...")
     node = t.getNode(i)
     node.bootAtTime(bootTime)
@@ -80,12 +82,12 @@ for line in lines:
             mid_compl = 0
             sys.stdout.write ("#")
             sys.stdout.flush()
-        for i in range(1, 10):
+        for i in range(1, NUM_OF_NODES + 1):
             t.getNode(i).addNoiseTraceReading(val)
 print("Done!")
 
 
-for i in range(1, 10):
+for i in range(1, NUM_OF_NODES + 1):
     print(">>>Creating noise model for node:", i)
     t.getNode(i).createNoiseModel()
 
