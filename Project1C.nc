@@ -210,7 +210,7 @@ implementation
 		call CheckConnectionTimer.startOneShot(TIMEOUT);
 	}
 
-	void sendConAckMessage(uint16_t cliendId)
+	void sendConAckMessage(uint16_t clientId)
 	{
 		message_t packet;
 				
