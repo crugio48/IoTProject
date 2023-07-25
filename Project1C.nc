@@ -16,8 +16,15 @@ module Project1C @safe()
 	{
 		/****** INTERFACES *****/
 		interface Boot;
-		interface Receive;
-		interface AMSend;
+		
+		interface Receive1;
+		interface AMSend1;
+
+		interface Receive2;
+		interface AMSend2;
+
+
+
 		interface SplitControl as AMControl;
 		interface Packet;
 		
@@ -150,25 +157,64 @@ implementation
 			return;
 		}
 
-		// Try to start sending packet, if successfull then lock radio access
-		if (call AMSend.send(address, packet, sizeof(custom_msg_t)) == SUCCESS)
-		{
-			sentPacket = packet;
-			isRadioLocked = TRUE;			// lock the radio
+		if (packet_payload -> Type == 0 || packet_payload -> Type == 1){
 
-			printf("Node %d sending packet of Type %d to address %d\n", TOS_NODE_ID, packet_payload->Type, address);
+			if (call AMSend1.send(address, packet, sizeof(custom_msg_t)) == SUCCESS)
+			{
+				sentPacket = packet;
+				isRadioLocked = TRUE;			// lock the radio
+
+				printf("Node %d sending packet of Type %d to address %d\n", TOS_NODE_ID, packet_payload->Type, address);
+				printfflush();
+			}
+			else
+			{
+				printf("ERROR: Node %d failed sending packet of Type %d to address %d in AMSend.send\n", TOS_NODE_ID,  packet_payload->Type, address);
+				printfflush();
+			}
+
+		}
+		elif (packet_payload -> Type == 2 || packet_payload -> Type == 3){
+
+			if (call AMSend2.send(address, packet, sizeof(custom_msg_t)) == SUCCESS)
+			{
+				sentPacket = packet;
+				isRadioLocked = TRUE;			// lock the radio
+
+				printf("Node %d sending packet of Type %d to address %d\n", TOS_NODE_ID, packet_payload->Type, address);
+				printfflush();
+			}
+			else
+			{
+				printf("ERROR: Node %d failed sending packet of Type %d to address %d in AMSend.send\n", TOS_NODE_ID,  packet_payload->Type, address);
+				printfflush();
+			}
+
+		}
+	}
+
+
+	event void AMSend1.sendDone(message_t* bufPtr, error_t error)
+	{
+		// Get the payload of the packet to debug the send with the type of packet sent
+		custom_msg_t* packet_payload = (custom_msg_t*)call Packet.getPayload(bufPtr, sizeof(custom_msg_t));
+		
+		// Unlock the radio if send is done correctly
+		if (error == SUCCESS && sentPacket == bufPtr)
+		{
+			printf("Node %d sent packet of Type %d successfully\n", TOS_NODE_ID, packet_payload->Type);
 			printfflush();
 		}
 		else
 		{
-			printf("ERROR: Node %d failed sending packet of Type %d to address %d in AMSend.send\n", TOS_NODE_ID,  packet_payload->Type, address);
+			printf("ERROR: Node %d failed sending packet of Type %d in AMSend.sendDone\n", TOS_NODE_ID, packet_payload->Type);
 			printfflush();
-		}
+			}
 
+		isRadioLocked = FALSE;
 	}
 
-
-	event void AMSend.sendDone(message_t* bufPtr, error_t error)
+	event void AMSend2.sendDone(message_t* bufPtr, error_t error)
 	{
 		// Get the payload of the packet to debug the send with the type of packet sent
 		custom_msg_t* packet_payload = (custom_msg_t*)call Packet.getPayload(bufPtr, sizeof(custom_msg_t));
@@ -503,14 +549,12 @@ implementation
 	//*************************************************************************//
 
 
-
-
-	//parsing received packet
-	event message_t* Receive.receive(message_t* bufPtr, void* payload, uint8_t len)
+	event message_t* Receive1.receive(message_t* bufPtr, void* payload, uint8_t len)
 	{
 
 		custom_msg_t* packet_payload;
-		
+
+
 		if (len != sizeof(custom_msg_t)) 
 		{
 			printf("ERROR: Node %d received wrong lenght packet\n", TOS_NODE_ID);
@@ -536,7 +580,31 @@ implementation
 			receivedType1Logic(packet_payload);
 		}
 		
-		else if (packet_payload->Type == 2) // I received a subscribe message
+		return bufPtr;
+		
+    }
+
+	event message_t* Receive2.receive(message_t* bufPtr, void* payload, uint8_t len)
+	{
+
+		custom_msg_t* packet_payload;
+
+
+		if (len != sizeof(custom_msg_t)) 
+		{
+			printf("ERROR: Node %d received wrong lenght packet\n", TOS_NODE_ID);
+			printfflush();
+			return bufPtr;
+		}
+				
+
+		packet_payload = (custom_msg_t*)payload;
+		
+		printf("Node %d received packet of Type %d\n", TOS_NODE_ID, packet_payload->Type);
+		printfflush();
+		
+		
+		if (packet_payload->Type == 2) // I received a subscribe message
 		{
 			receivedType2Logic(packet_payload);
 		}
@@ -550,14 +618,10 @@ implementation
 		{
 			receivedType4Logic(packet_payload);
 		}
-
-
 		
 		return bufPtr;
 		
     }
-
-
 
 
 }
