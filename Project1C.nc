@@ -98,6 +98,7 @@ implementation
 	event void Boot.booted()
 	{
 		printf("Application of node %d booted.\n", TOS_NODE_ID);
+		printfflush();
 
 		call AMControl.start();
 	}
@@ -108,7 +109,7 @@ implementation
 		if (err == SUCCESS)
 		{
 			printf("Radio of node %d started.\n", TOS_NODE_ID);
-
+			printfflush();
 
 			if (TOS_NODE_ID != PAN_COORDINATOR_ID)
 			{
@@ -130,6 +131,7 @@ implementation
 	event void AMControl.stopDone(error_t err)
 	{
 		printf("Radio of node %d stopped.\n", TOS_NODE_ID);
+		printfflush();
 		// do nothing
 	}
 
@@ -144,6 +146,7 @@ implementation
 		if (isRadioLocked)
 		{
 			printf("WARNING: Node %d found radio locked so did not send a packet of Type %d\n", TOS_NODE_ID, packet_payload->Type, address);
+			printfflush();
 			return;
 		}
 
@@ -154,10 +157,12 @@ implementation
 			isRadioLocked = TRUE;			// lock the radio
 
 			printf("Node %d sending packet of Type %d to address %d\n", TOS_NODE_ID, packet_payload->Type, address);
+			printfflush();
 		}
 		else
 		{
 			printf("ERROR: Node %d failed sending packet of Type %d to address %d in AMSend.send\n", TOS_NODE_ID,  packet_payload->Type, address);
+			printfflush();
 		}
 
 	}
@@ -172,11 +177,13 @@ implementation
 		if (error == SUCCESS && sentPacket == bufPtr)
 		{
 			printf("Node %d sent packet of Type %d successfully\n", TOS_NODE_ID, packet_payload->Type);
+			printfflush();
 		}
 		else
 		{
 			printf("ERROR: Node %d failed sending packet of Type %d in AMSend.sendDone\n", TOS_NODE_ID, packet_payload->Type);
-		}
+			printfflush();
+			}
 
 		isRadioLocked = FALSE;
 	}
@@ -190,6 +197,7 @@ implementation
 		if (packet_payload == NULL)
 		{
 			printf("ERROR: Node %d failed allocating a packed payload\n", TOS_NODE_ID);
+			printfflush();
 			return;
 		}
 		
@@ -211,6 +219,7 @@ implementation
 		if (packet_payload == NULL)
 		{
 			printf("ERROR: Node %d failed allocating a packed payload\n", TOS_NODE_ID);
+			printfflush();
 			return;
 		}
 		
@@ -230,6 +239,7 @@ implementation
 		if (packet_payload == NULL)
 		{
 			printf("ERROR: Node %d failed allocating a packed payload\n", TOS_NODE_ID);
+			printfflush();
 			return;
 		}
 		
@@ -256,6 +266,7 @@ implementation
 		if (packet_payload == NULL)
 		{
 			printf("ERROR: Node %d failed allocating a packed payload\n", TOS_NODE_ID);
+			printfflush();
 			return;
 		}
 		
@@ -285,6 +296,7 @@ implementation
 		if (packet_payload == NULL)
 		{
 			printf("ERROR: Node %d failed allocating a packed payload\n", TOS_NODE_ID);
+			printfflush();
 			return;
 		}
 		
@@ -330,12 +342,14 @@ implementation
 		int i;
 		
 		printf("Node %d is sending the periodic update to node red\n", TOS_NODE_ID);
+		printfflush();
 
 		for(i = 0; i < NUM_OF_TOPICS; i++)
 		{
 			printf("%d:%d\n", i, latestValues[i]);
+			printfflush();
 		}
-		printfflush();
+		
 	}
 
 	void updateConnectedClients(uint16_t *connectedClients, uint16_t clientId){
@@ -344,11 +358,13 @@ implementation
 			if (connectedClients[i] == clientId){
 				//debug: the client is already connected...
 				printf("ERROR: The client %d is already connected to the PAN COORD\n", clientId);
+				printfflush();
 				return;
 			}
 			if (connectedClients[i] == 0){
 				connectedClients[i] = clientId;
 				printf("The client %d was added to the connected clients of the PAN COORD\n", clientId);
+				printfflush();
 				return;
 			}
 		}
@@ -363,6 +379,7 @@ implementation
 			if (subscriptions[i].clientId == clientId && subscriptions[i].topic == topic)
 			{
 				printf("ERROR: The client %d sent a subscribe request for a topic he is already subscribed to\n", clientId);
+				printfflush();
 				return;
 			}
 
@@ -371,6 +388,7 @@ implementation
 				subscriptions[i].clientId = clientId;
 				subscriptions[i].topic = topic;
 				printf("The client %d subscribed to topic %d\n", clientId, topic);
+				printfflush();
 				return;
 			}
 		}
@@ -382,6 +400,7 @@ implementation
 		//check if I am the PAN coordinator, otherwise I shouldn't have received the message 
 		if (TOS_NODE_ID != PAN_COORDINATOR_ID) {
 			printf("ERROR: Node %d received a CON message but it is not a PAN COORD\n", TOS_NODE_ID);
+			printfflush();
 			return;
 		}
 		//I am the PAN coordinator update of the connected clients...
@@ -416,6 +435,7 @@ implementation
 		if (TOS_NODE_ID != PAN_COORDINATOR_ID)
 		{
 			printf("ERROR: Node %d is not the pan coordinator and received a subscribe request\n", TOS_NODE_ID);
+			printfflush();
 			return;
 		}
 
@@ -431,6 +451,7 @@ implementation
 		if (!isClientConnected)
 		{
 			printf("ERROR: Node %d tried to subscribe without being connected\n", senderId);
+			printfflush();
 			return;
 		}
 
@@ -450,6 +471,7 @@ implementation
 		if (TOS_NODE_ID == PAN_COORDINATOR_ID)
 		{
 			printf("ERROR: Node %d is the pan coordinator and received a SubAck\n", TOS_NODE_ID);
+			printfflush();
 			return;
 		}
 
@@ -473,6 +495,7 @@ implementation
 		}
 		else{
 			printf("Client %d received publish. Topic: %d, Value: %d\n", TOS_NODE_ID, received_payload->Topic, received_payload->Value);
+			printfflush();
 		}
 
 	}	
@@ -491,6 +514,7 @@ implementation
 		if (len != sizeof(custom_msg_t)) 
 		{
 			printf("ERROR: Node %d received wrong lenght packet\n", TOS_NODE_ID);
+			printfflush();
 			return bufPtr;
 		}
 				
@@ -498,7 +522,7 @@ implementation
 		packet_payload = (custom_msg_t*)payload;
 		
 		printf("Node %d received packet of Type %d\n", TOS_NODE_ID, packet_payload->Type);
-		
+		printfflush();
 		
 		
 		// Read the Type of the message received and call the correct function to handle the logic
