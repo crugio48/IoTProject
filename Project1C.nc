@@ -114,9 +114,9 @@ implementation
 		// Get the payload of the packet to debug the send with the type of packet being sent
 		custom_msg_t* packet_payload = (custom_msg_t*)call Packet.getPayload(packet, sizeof(custom_msg_t));
 		
-		if (isRadioLocked)
+		if (isRadioLocked == TRUE)
 		{
-			printf("WARNING: Node %d found radio locked so did not send a packet of Type %d\n", TOS_NODE_ID, packet_payload->Type, address);
+			printf("WARNING: Node %d found radio locked so did not send a packet of Type %d\n", TOS_NODE_ID, packet_payload->Type);
 			return;
 		}
 
