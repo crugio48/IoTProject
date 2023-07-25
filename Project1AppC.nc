@@ -12,8 +12,14 @@ implementation
 	/******** COMPONENTS *******/
 	
 	components MainC, Project1C as App, LedsC;
-	components new AMSenderC(AM_COUNT_MSG);			// for sending messages
-	components new AMReceiverC(AM_COUNT_MSG);		// for receiving messages
+
+	components new AMSenderC(AM_COUNT_MSG) as AMSenderC1;			// for sending messages
+	components new AMReceiverC(AM_COUNT_MSG) as AMReceiverC1;		// for receiving messages
+
+	components new AMSenderC(9) as AMSenderC2;			// for sending messages
+	components new AMReceiverC(9) as AMReceiverC2;		// for receiving messages
+
+
 	components ActiveMessageC;			// for managing messages and packets
 	components SerialPrintfC;			// For the printf
 	
@@ -34,8 +40,13 @@ implementation
   
 	App.Boot -> MainC.Boot;
 
-	App.Receive -> AMReceiverC;
-	App.AMSend -> AMSenderC;
+	App.Receive1 -> AMReceiverC1;
+	App.AMSend1 -> AMSenderC1;
+
+	App.Receive2 -> AMReceiverC2;
+	App.AMSend2 -> AMSenderC2;
+
+
 	App.AMControl -> ActiveMessageC;
 	App.Packet -> AMSenderC;
 
