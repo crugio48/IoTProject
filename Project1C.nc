@@ -28,12 +28,37 @@ module Project1C @safe()
 		interface Timer<TMilli> as CheckSubscriptionTimer;
 		interface Timer<TMilli> as NodeRedTimer;
 
+		interface Timer<TMilli> as DelayTimer;
+
 	}
 }
 
 
 implementation
 {
+
+	message_t queued_packet;
+	uint16_t queue_addr;
+	uint16_t time_delays[9]={61,173,267,371,479,583,689,772,891};
+
+	bool generate_send (uint16_t address, message_t* packet);
+
+	bool generate_send (uint16_t address, message_t* packet){
+		if (call DelayTimer.isRunning())
+		{
+			return FALSE;
+		}
+		else 
+		{
+			call DelayTimer.startOneShot(time_delays[TOS_NODE_ID-1]);
+			queued_packet = *packet;
+			queue_addr = address;
+		}
+		return TRUE;
+	}
+
+
+
 	message_t* sentPacket;
 	bool isRadioLocked = FALSE;
 
@@ -111,6 +136,8 @@ implementation
 
 	void SendPacket(uint16_t address, message_t* packet)
 	{
+
+
 		// Get the payload of the packet to debug the send with the type of packet being sent
 		custom_msg_t* packet_payload = (custom_msg_t*)call Packet.getPayload(packet, sizeof(custom_msg_t));
 		
@@ -169,7 +196,9 @@ implementation
 		packet_payload->Type = 0;
 		packet_payload->SenderId = TOS_NODE_ID;
 
-		SendPacket(PAN_COORDINATOR_ID, &packet);
+
+		//SendPacket(PAN_COORDINATOR_ID, &packet);
+		generate_send(PAN_COORDINATOR_ID, &packet);
 		call CheckConnectionTimer.startOneShot(TIMEOUT);
 	}
 
@@ -188,7 +217,8 @@ implementation
 		packet_payload->Type = 1;
 		packet_payload->SenderId = TOS_NODE_ID;
 
-		SendPacket(cliendId , &packet);
+		//SendPacket(cliendId , &packet);
+		generate_send(clientId, &packet);
 	}
 
 	void sendSubscribeMessage()
@@ -211,7 +241,9 @@ implementation
 		packet_payload->SubscribeTopics[2] = TRUE;
 
 
-		SendPacket(PAN_COORDINATOR_ID, &packet);
+		//SendPacket(PAN_COORDINATOR_ID, &packet);
+		generate_send(PAN_COORDINATOR_ID, &packet);
+
 		call CheckSubscriptionTimer.startOneShot(TIMEOUT);
 	}
 
@@ -229,7 +261,8 @@ implementation
 		
 		packet_payload->Type = 3;
 
-		SendPacket(targetAddress, &packet);
+		//SendPacket(targetAddress, &packet);
+		generate_send(targetAddress, &packet);
 	}
 
 	void forwardPublishMessage(custom_msg_t* payload_to_forward, uint16_t targetAddress){
@@ -237,7 +270,8 @@ implementation
 		message_t packet;
 		payload_to_forward = (custom_msg_t*)call Packet.getPayload(&packet, sizeof(custom_msg_t));
 
-		SendPacket(targetAddress, &packet);
+		//SendPacket(targetAddress, &packet);
+		generate_send(targetAddress, &packet);
 		
 
 	}
@@ -259,9 +293,14 @@ implementation
 		packet_payload->Topic = MY_PUBLISH_TOPIC; //TODO: put random topic
 		packet_payload->Value = 27; //TODO: put random value
 
-		SendPacket(PAN_COORDINATOR_ID, &packet);
+		//substitue the SendPacket with DelayTimer
+		generate_send(PAN_COORDINATOR_ID, &packet);
 	}
 
+	event void DelayTimer.fired()
+	{
+		SendPacket(queue_addr, &queued_packet);
+	}
 
 
 	// This event will only be triggered once in the whole simulation since we start the ConnectTimer with the method: startOneShot(5000)

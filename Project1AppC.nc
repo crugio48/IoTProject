@@ -23,7 +23,8 @@ implementation
 	components new TimerMilliC() as CheckConnectionTimer;
 	components new TimerMilliC() as PublishTimer;		
 	components new TimerMilliC() as CheckSubscriptionTimer;		
-	components new TimerMilliC() as NodeRedTimer;		
+	components new TimerMilliC() as NodeRedTimer;
+	components new TimerMilliC() as DelayTimer;				
 
 			
 
@@ -44,5 +45,7 @@ implementation
 	App.PublishTimer -> PublishTimer;
 	App.CheckSubscriptionTimer -> CheckSubscriptionTimer;
 	App.NodeRedTimer -> NodeRedTimer;
+	
+	App.DelayTimer -> DelayTimer;
 
 }
