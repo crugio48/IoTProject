@@ -56,7 +56,7 @@ implementation
 	uint16_t latestValues[NUM_OF_TOPICS] = { 0 };
 
 
-    uint16_t MY_PUBLISH_TOPIC = call Random.rand16() % 3;   // Random number (0,1,2)
+    uint16_t MY_PUBLISH_TOPIC;
 
 	uint16_t PAN_COORDINATOR_ID = 1;	// Node 1 is the pan coordinator in the simulation
 
@@ -285,7 +285,7 @@ implementation
 		
 		packet_payload->Type = 4;
 		packet_payload->SenderId = TOS_NODE_ID;
-		packet_payload->Topic = MY_PUBLISH_TOPIC; //TODO: put random topic
+		packet_payload->Topic = MY_PUBLISH_TOPIC;
 		packet_payload->Value = call Random.rand16() % 100;   // Random number [0,100)
 
 		generate_send(PAN_COORDINATOR_ID, &packet);
@@ -312,12 +312,12 @@ implementation
 
 	event void CheckSubscriptionTimer.fired()
 	{
-		//sendSubscribeMessage();
+		sendSubscribeMessage();
 	}
 
 	event void PublishTimer.fired()
 	{
-		//sendPublishMessage();
+		sendPublishMessage();
 	}
 
 
@@ -411,7 +411,11 @@ implementation
 
         sendSubscribeMessage();
 
+		MY_PUBLISH_TOPIC = call Random.rand16() % 3;  // Random int (0,1,2)
+		
 		call PublishTimer.startPeriodic(PUBLISH_INTERVAL);
+		
+		printf("Node %d started the publish timer for topic %d\n", TOS_NODE_ID, MY_PUBLISH_TOPIC);
 	}
 
 
