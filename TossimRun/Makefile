@@ -1,4 +1,4 @@
-COMPONENT=TestPrintfAppC
+COMPONENT=Project1AppC
 
 CFLAGS += -I$(TOSDIR)/lib/printf
 
