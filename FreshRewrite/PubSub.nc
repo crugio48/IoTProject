@@ -54,18 +54,25 @@ implementation
 
 	uint16_t PAN_COORDINATOR_ID = 1;	// Node 1 is the pan coordinator in the simulation
 
-	message_t * out_queue[QUEUE_DIM] = { NULL };
+	message_t *out_queue[QUEUE_DIM] = { NULL };
 	uint16_t out_queue_address[QUEUE_DIM] = { 0 };
+	
+	message_t packetToSend;
+	uint16_t addressToSend;
 
 
 	int bufferSize = 0;
 
-	bool add_packet_to_queue(uint16_t address, message_t * packet){
+	bool add_packet_to_queue(uint16_t address, message_t * packet)
+	{
 		if (bufferSize < QUEUE_DIM)
 		{
-        	out_queue[bufferSize++] = packet;
-			out_queue_address[bufferSize++] = address;
+        	out_queue[bufferSize] = packet;
+			out_queue_address[bufferSize] = address;
+			
+			bufferSize++;
         	return TRUE; // Successfully added the packet
+        	
 		} else {
 			return FALSE; // Buffer is full, packet cannot be added
 		}
@@ -73,12 +80,13 @@ implementation
 
 	
 
-	bool remove_packet_from_queue(uint16_t * address, message_t * first_packet) {
+	bool remove_packet_from_queue()
+	{
 		int i;
-		first_packet = out_queue[0];
-		address = &out_queue_address[0];
+		packetToSend = *out_queue[0];
+		addressToSend = out_queue_address[0];
 		
-		if (first_packet == NULL) {
+		if (addressToSend == 0) {
 			return FALSE;
 		}
 		
@@ -141,10 +149,10 @@ implementation
     //-----------------------------------> Sending functions:
 
 
-    void SendPacket(uint16_t address, message_t* packet)
+    void SendPacket(uint16_t address, message_t packet)
 	{
 		// Get the payload of the packet to debug the send with the type of packet being sent
-		PB_msg_t* packet_payload = (PB_msg_t*)call Packet.getPayload(packet, sizeof(PB_msg_t));
+		PB_msg_t* packet_payload = (PB_msg_t*)call Packet.getPayload(&packet, sizeof(PB_msg_t));
 		
 		printf("AAAAA: RadioLocked value = %d\n", isRadioLocked);
 		
@@ -153,11 +161,12 @@ implementation
 			printf("WARNING: Node %d found radio locked so did not send a packet of Type %d\n", TOS_NODE_ID, packet_payload->Type);
 			return;
 		}
+		
 
 		// Try to start sending packet, if successfull then lock radio access
-		if (call AMSend.send(address, packet, sizeof(PB_msg_t)) == SUCCESS)
+		if (call AMSend.send(address, &packet, sizeof(PB_msg_t)) == SUCCESS)
 		{
-			sentPacket = packet;
+			sentPacket = &packet;
 			isRadioLocked = TRUE;			// lock the radio
 			
 			printf("Node %d sending packet of Type %d to address %d\n", TOS_NODE_ID, packet_payload->Type, address);
@@ -211,7 +220,7 @@ implementation
 		packet_payload->Type = 0;
 		packet_payload->SenderId = TOS_NODE_ID;
 
-		if ( add_packet_to_queue(PAN_COORDINATOR_ID, &packet) == FALSE){
+		if (add_packet_to_queue(PAN_COORDINATOR_ID, &packet) == FALSE){
 			printf("ERROR: Node %d failed to add packet to queue, the queue is full\n", TOS_NODE_ID);
 		}
 
@@ -241,6 +250,7 @@ implementation
 	void sendSubscribeMessage()
 	{
 		message_t packet;
+		int i;
 				
 		PB_msg_t* packet_payload = (PB_msg_t*)call Packet.getPayload(&packet, sizeof(PB_msg_t));
 		
@@ -255,7 +265,7 @@ implementation
 
 
 		for (i=0; i < NUM_OF_TOPICS; i++){
-			if ( call Random.rand16() % 100 < 60) {
+			if (call Random.rand16() % 100 < 60) {
 				packet_payload -> SubscribeTopics[i] = 1; 
 			}
 			else{
@@ -263,7 +273,7 @@ implementation
 			}
 		}
 
-		if ( add_packet_to_queue(PAN_COORDINATOR_ID, &packet) == FALSE){
+		if (add_packet_to_queue(PAN_COORDINATOR_ID, &packet) == FALSE){
 			printf("ERROR: Node %d failed to add packet to queue, the queue is full\n", TOS_NODE_ID);
 		}
 
@@ -346,19 +356,16 @@ implementation
 
     event void SendTimer.fired()
 	{
-		uint16_t address;
-		message_t *packet;
-
 		if (isRadioLocked){
 			printf("DEBUG: The radio was locked");
 			return;
 		}
 
-		if (remove_packet_from_queue( &address, packet) == FALSE){
+		if (remove_packet_from_queue() == FALSE){
 			return;
 		}
 
-		SendPacket(address, packet);
+		SendPacket(addressToSend, packetToSend);
 	}
 
 	event void ConnectTimer.fired()
@@ -461,7 +468,6 @@ implementation
 
 	void receivedType1Logic(PB_msg_t *received_payload)
     {
-		int i;
         if (TOS_NODE_ID == PAN_COORDINATOR_ID)
 		{
 			printf("ERROR: Node %d is the pan coordinator and received a ConAck\n", TOS_NODE_ID);
@@ -472,7 +478,6 @@ implementation
 		call CheckConnectionTimer.stop();
 		
 		sendSubscribeMessage();
-		
 
 		MY_PUBLISH_TOPIC = (uint16_t) call Random.rand16() % 3;  // Random int (0,1,2)
 		
