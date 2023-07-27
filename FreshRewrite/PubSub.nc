@@ -121,6 +121,8 @@ implementation
 		// Get the payload of the packet to debug the send with the type of packet being sent
 		PB_msg_t* packet_payload = (PB_msg_t*)call Packet.getPayload(packet, sizeof(PB_msg_t));
 		
+		printf("AAAAA: RadioLocked value = %d\n", isRadioLocked);
+		
 		if (isRadioLocked)
 		{
 			printf("WARNING: Node %d found radio locked so did not send a packet of Type %d\n", TOS_NODE_ID, packet_payload->Type);
@@ -132,7 +134,7 @@ implementation
 		{
 			sentPacket = packet;
 			isRadioLocked = TRUE;			// lock the radio
-
+			
 			printf("Node %d sending packet of Type %d to address %d\n", TOS_NODE_ID, packet_payload->Type, address);
 		}
 		else
@@ -460,11 +462,11 @@ implementation
 		received_payload->SubscribeTopics[2]);
 
 
-		if (received_payload->SubscribeTopics[0] == TRUE) SubscribeClientToTopic(received_payload->SenderId, 0);
+		if (received_payload->SubscribeTopics[0]) SubscribeClientToTopic(received_payload->SenderId, 0);
 		
-		if (received_payload->SubscribeTopics[1] == TRUE) SubscribeClientToTopic(received_payload->SenderId, 1);
+		if (received_payload->SubscribeTopics[1]) SubscribeClientToTopic(received_payload->SenderId, 1);
 
-		if (received_payload->SubscribeTopics[2] == TRUE) SubscribeClientToTopic(received_payload->SenderId, 2);
+		if (received_payload->SubscribeTopics[2]) SubscribeClientToTopic(received_payload->SenderId, 2);
 		
 
 		SendSubackMessage(received_payload->SenderId);
@@ -491,7 +493,8 @@ implementation
 			//forward the publish to all the subscribed at that topic
 			for (i=0; i < MAX_SUBSCRIPTIONS; i++)
 			{
-				if (subscriptions[i].clientId != received_payload->SenderId && subscriptions[i].clientId != 0 && subscriptions[i].topic == received_payload->Topic){
+				if (subscriptions[i].clientId != received_payload->SenderId && subscriptions[i].clientId != 0 && subscriptions[i].topic == received_payload->Topic)
+				{					
 					forwardPublishMessage(received_payload, subscriptions[i].clientId);
 				}
 			}

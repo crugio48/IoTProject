@@ -9,10 +9,10 @@ typedef nx_struct PB_msg
 	nx_uint16_t SenderId;
 	nx_uint16_t Topic;  			// 0 = temperature, 1 = humidity, 2 = luminosity
 	nx_uint16_t Value;
-	nx_bool SubscribeTopics[3]; // 0 = temperature, 1 = humidity, 2 = luminosity
 } PB_msg_t;
 
-enum {
+enum 
+{
 	AM_PB_MSG = 10,
 
 	MAX_SUBSCRIPTIONS = 30,
