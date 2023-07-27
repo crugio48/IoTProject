@@ -25,7 +25,7 @@ implementation
 	components new TimerMilliC() as PublishTimer;		
 	components new TimerMilliC() as CheckSubscriptionTimer;		
 	components new TimerMilliC() as NodeRedTimer;
-	components new TimerMilliC() as DelayTimer;				
+	components new TimerMilliC() as SendTimer;				
 
 			
 
@@ -48,6 +48,6 @@ implementation
 	App.CheckSubscriptionTimer -> CheckSubscriptionTimer;
 	App.NodeRedTimer -> NodeRedTimer;
 	
-	App.DelayTimer -> DelayTimer;
+	App.SendTimer -> SendTimer;
 
 }

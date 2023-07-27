@@ -23,7 +23,7 @@ module PubSub @safe()
 		interface Timer<TMilli> as CheckSubscriptionTimer;
 		interface Timer<TMilli> as NodeRedTimer;
 
-		interface Timer<TMilli> as DelayTimer;
+		interface Timer<TMilli> as SendTimer;
 
 	}
 }
@@ -31,14 +31,8 @@ module PubSub @safe()
 
 implementation
 {
-    message_t queued_packet;
-	uint16_t queue_addr;
-	uint16_t time_delays[9]={61,173,267,371,479,583,689,772,891};
-
-
     message_t* sentPacket;
 	bool isRadioLocked = FALSE;
-
 
 	struct Subscriptions
 	{
@@ -60,23 +54,50 @@ implementation
 
 	uint16_t PAN_COORDINATOR_ID = 1;	// Node 1 is the pan coordinator in the simulation
 
+	message_t * out_queue[QUEUE_DIM] = { NULL };
+	uint16_t out_queue_address[QUEUE_DIM] = { 0 };
 
+
+	int bufferSize = 0;
+
+	bool add_packet_to_queue(uint16_t address, message_t * packet){
+		if (bufferSize < QUEUE_DIM)
+		{
+        	out_queue[bufferSize++] = packet;
+			out_queue_address[bufferSize++] = address;
+        	return TRUE; // Successfully added the packet
+		} else {
+			return FALSE; // Buffer is full, packet cannot be added
+		}
+	}
+
+	
+
+	bool remove_packet_from_queue(uint16_t * address, message_t * first_packet) {
+		int i;
+		first_packet = out_queue[0];
+		address = &out_queue_address[0];
+		
+		if (first_packet == NULL) {
+			return FALSE;
+		}
+		
+		for (i = 0; i < QUEUE_DIM - 1 && out_queue[i] != NULL; i++) {
+			out_queue[i] = out_queue[i + 1];
+			out_queue_address[i] = out_queue_address[i + 1];
+			
+		}
+		bufferSize--;
+		return TRUE; 
+		
+	}
+
+	
     //-------------------------------> Booting events:
 
     event void Boot.booted()
 	{
-		int i;
-
 		printf("Application of node %d booted.\n", TOS_NODE_ID);
-
-		if (TOS_NODE_ID == PAN_COORDINATOR_ID)
-		{
-			for(i = 0; i < MAX_SUBSCRIPTIONS; i++)
-			{
-				printf("DEBUG: initial subscriptions[%d] = {%d,%d}\n", i, subscriptions[i].clientId, subscriptions[i].topic);
-			}
-		}
-
 		call AMControl.start();
 	}
 
@@ -97,11 +118,15 @@ implementation
 				call NodeRedTimer.startPeriodic(NODE_RED_INTERVAL);
 			}
 
+			call SendTimer.startPeriodic(SEND_TIMER);
+
 		}
 		else
 		{
 			call AMControl.start();
 		}
+
+
 	}
 
 
@@ -167,20 +192,6 @@ implementation
 	}
 
 
-	bool generate_send (uint16_t address, message_t* packet){
-		if (call DelayTimer.isRunning())
-		{
-			return FALSE;
-		}
-		else 
-		{
-			call DelayTimer.startOneShot(time_delays[TOS_NODE_ID-1]);
-			queued_packet = *packet;
-			queue_addr = address;
-		}
-		return TRUE;
-	}
-
 
     //----------------------------------> Packets creation functions:
 
@@ -200,7 +211,9 @@ implementation
 		packet_payload->Type = 0;
 		packet_payload->SenderId = TOS_NODE_ID;
 
-		generate_send(PAN_COORDINATOR_ID, &packet);
+		if ( add_packet_to_queue(PAN_COORDINATOR_ID, &packet) == FALSE){
+			printf("ERROR: Node %d failed to add packet to queue, the queue is full\n", TOS_NODE_ID);
+		}
 
 		call CheckConnectionTimer.startOneShot(TIMEOUT);
 	}
@@ -219,7 +232,10 @@ implementation
 		
 		packet_payload->Type = 1;
 
-		generate_send(clientId, &packet);
+
+		if ( add_packet_to_queue(clientId, &packet) == FALSE){
+			printf("ERROR: Node %d failed to add packet to queue, the queue is full\n", TOS_NODE_ID);
+		}
 	}
 
 	void sendSubscribeMessage()
@@ -237,11 +253,20 @@ implementation
 		packet_payload->Type = 2;
 		packet_payload->SenderId = TOS_NODE_ID;
 
-		packet_payload->SubscribeTopics[0] = TRUE; //TODO: put random topics to subscribe
-		packet_payload->SubscribeTopics[1] = TRUE;
-		packet_payload->SubscribeTopics[2] = TRUE;
 
-		generate_send(PAN_COORDINATOR_ID, &packet);
+		for (i=0; i < NUM_OF_TOPICS; i++){
+			if ( call Random.rand16() % 100 < 60) {
+				packet_payload -> SubscribeTopics[i] = 1; 
+			}
+			else{
+				packet_payload -> SubscribeTopics[i] = 0;
+			}
+		}
+
+		if ( add_packet_to_queue(PAN_COORDINATOR_ID, &packet) == FALSE){
+			printf("ERROR: Node %d failed to add packet to queue, the queue is full\n", TOS_NODE_ID);
+		}
+
 
 		call CheckSubscriptionTimer.startOneShot(TIMEOUT);
 	}
@@ -260,7 +285,12 @@ implementation
 		
 		packet_payload->Type = 3;
 
-		generate_send(clientId, &packet);
+		if ( add_packet_to_queue(clientId, &packet) == FALSE){
+			printf("ERROR: Node %d failed to add packet to queue, the queue is full\n", TOS_NODE_ID);
+		}
+
+
+
 	}
 
 	void forwardPublishMessage(PB_msg_t* payload_to_forward, uint16_t targetAddress)
@@ -280,7 +310,9 @@ implementation
 		packet_payload->Topic = payload_to_forward->Topic;
 		packet_payload->Value = payload_to_forward->Value;
 
-		generate_send(targetAddress, &packet);
+		if ( add_packet_to_queue(targetAddress, &packet) == FALSE){
+			printf("ERROR: Node %d failed to add packet to queue, the queue is full\n", TOS_NODE_ID);
+		}
 	}
 
 	void sendPublishMessage()
@@ -300,16 +332,33 @@ implementation
 		packet_payload->Topic = MY_PUBLISH_TOPIC;
 		packet_payload->Value = (uint16_t) call Random.rand16() % 100;   // Random number [0,100)
 
-		generate_send(PAN_COORDINATOR_ID, &packet);
+
+		if ( add_packet_to_queue(PAN_COORDINATOR_ID, &packet) == FALSE){
+			printf("ERROR: Node %d failed to add packet to queue, the queue is full\n", TOS_NODE_ID);
+		}
+
+
 	}
 
 
     //------------------------------------------> Timers fired:
 
 
-    event void DelayTimer.fired()
+    event void SendTimer.fired()
 	{
-		SendPacket(queue_addr, &queued_packet);
+		uint16_t address;
+		message_t *packet;
+
+		if (isRadioLocked){
+			printf("DEBUG: The radio was locked");
+			return;
+		}
+
+		if (remove_packet_from_queue( &address, packet) == FALSE){
+			return;
+		}
+
+		SendPacket(address, packet);
 	}
 
 	event void ConnectTimer.fired()
@@ -412,6 +461,7 @@ implementation
 
 	void receivedType1Logic(PB_msg_t *received_payload)
     {
+		int i;
         if (TOS_NODE_ID == PAN_COORDINATOR_ID)
 		{
 			printf("ERROR: Node %d is the pan coordinator and received a ConAck\n", TOS_NODE_ID);
@@ -420,8 +470,9 @@ implementation
 
 		//conn ack received the connection is completed
 		call CheckConnectionTimer.stop();
-
-        sendSubscribeMessage();
+		
+		sendSubscribeMessage();
+		
 
 		MY_PUBLISH_TOPIC = (uint16_t) call Random.rand16() % 3;  // Random int (0,1,2)
 		
@@ -462,11 +513,11 @@ implementation
 		received_payload->SubscribeTopics[2]);
 
 
-		if (received_payload->SubscribeTopics[0]) SubscribeClientToTopic(received_payload->SenderId, 0);
+		if (received_payload->SubscribeTopics[0] == 1) SubscribeClientToTopic(received_payload->SenderId, 0);
 		
-		if (received_payload->SubscribeTopics[1]) SubscribeClientToTopic(received_payload->SenderId, 1);
+		if (received_payload->SubscribeTopics[1] == 1) SubscribeClientToTopic(received_payload->SenderId, 1);
 
-		if (received_payload->SubscribeTopics[2]) SubscribeClientToTopic(received_payload->SenderId, 2);
+		if (received_payload->SubscribeTopics[2] == 1) SubscribeClientToTopic(received_payload->SenderId, 2);
 		
 
 		SendSubackMessage(received_payload->SenderId);
