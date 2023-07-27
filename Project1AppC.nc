@@ -48,7 +48,8 @@ implementation
 
 
 	App.AMControl -> ActiveMessageC;
-	App.Packet -> AMSenderC;
+	App.Packet -> AMSenderC1;
+	App.Packet -> AMSenderC2;
 
 	//TODO timers updated
 	App.ConnectTimer -> ConnectTimer;

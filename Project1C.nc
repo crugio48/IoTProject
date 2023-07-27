@@ -17,11 +17,11 @@ module Project1C @safe()
 		/****** INTERFACES *****/
 		interface Boot;
 		
-		interface Receive1;
-		interface AMSend1;
+		interface Receive as Receive1;
+		interface AMSend as AMSend1;
 
-		interface Receive2;
-		interface AMSend2;
+		interface Receive as Receive2;
+		interface AMSend as AMSend2;
 
 
 
@@ -174,7 +174,7 @@ implementation
 			}
 
 		}
-		elif (packet_payload -> Type == 2 || packet_payload -> Type == 3){
+		if (packet_payload -> Type == 2 || packet_payload -> Type == 3){
 
 			if (call AMSend2.send(address, packet, sizeof(custom_msg_t)) == SUCCESS)
 			{
