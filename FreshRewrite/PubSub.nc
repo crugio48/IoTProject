@@ -65,7 +65,17 @@ implementation
 
     event void Boot.booted()
 	{
+		int i;
+
 		printf("Application of node %d booted.\n", TOS_NODE_ID);
+
+		if (TOS_NODE_ID == PAN_COORDINATOR_ID)
+		{
+			for(i = 0; i < MAX_SUBSCRIPTIONS; i++)
+			{
+				printf("DEBUG: initial subscriptions[%d] = {%d,%d}\n", i, subscriptions[i].clientId, subscriptions[i].topic);
+			}
+		}
 
 		call AMControl.start();
 	}
@@ -286,7 +296,7 @@ implementation
 		packet_payload->Type = 4;
 		packet_payload->SenderId = TOS_NODE_ID;
 		packet_payload->Topic = MY_PUBLISH_TOPIC;
-		packet_payload->Value = call Random.rand16() % 100;   // Random number [0,100)
+		packet_payload->Value = (uint16_t) call Random.rand16() % 100;   // Random number [0,100)
 
 		generate_send(PAN_COORDINATOR_ID, &packet);
 	}
@@ -411,7 +421,7 @@ implementation
 
         sendSubscribeMessage();
 
-		MY_PUBLISH_TOPIC = call Random.rand16() % 3;  // Random int (0,1,2)
+		MY_PUBLISH_TOPIC = (uint16_t) call Random.rand16() % 3;  // Random int (0,1,2)
 		
 		call PublishTimer.startPeriodic(PUBLISH_INTERVAL);
 		
@@ -432,7 +442,7 @@ implementation
 
 		isClientConnected = FALSE;
 
-		for (i = 0; i < 10 /*TODO change to max connections*/; i++)
+		for (i = 0; i < MAX_CLIENTS; i++)
 		{
 			if (connectedClients[i] == received_payload->SenderId) isClientConnected = TRUE;
 		}
@@ -442,6 +452,13 @@ implementation
 			printf("ERROR: Node %d tried to subscribe without being connected\n", received_payload->SenderId);
 			return;
 		}
+
+		printf("DEBUG: Node %d subscribe request content: Topic 0: %d | Topic 1: %d | Topic 2: %d\n",
+		received_payload->SenderId,
+		received_payload->SubscribeTopics[0],
+		received_payload->SubscribeTopics[1],
+		received_payload->SubscribeTopics[2]);
+
 
 		if (received_payload->SubscribeTopics[0] == TRUE) SubscribeClientToTopic(received_payload->SenderId, 0);
 		
