@@ -113,7 +113,7 @@ implementation
 		pktToSend = packet;
 
 		// Try to start sending packet, if successfull then lock radio access
-		if (call AMSend.send(address, &pktToSend, sizeof(PB_msg_t)) == SUCCESS)
+		if (call AMSend.send((uint16_t) address, &pktToSend, sizeof(PB_msg_t)) == SUCCESS)
 		{
 			sentPacket = &pktToSend;
 			sentDestAddress = address;
