@@ -531,27 +531,27 @@ implementation
 		// Read the Type of the message received and call the correct function to handle the logic
 		if (packet_payload->Type == 0) //I received a connect message
 		{
-			signal LogicHandlerModule.receivedType0Logic(packet_payload->SenderId);
+			call LogicHandlerModule.postType0Logic(packet_payload->SenderId);
 		}
 		
 		else if (packet_payload->Type == 1) //I received a con ack message
 		{
-			signal LogicHandlerModule.receivedType1Logic();
+			call LogicHandlerModule.postType1Logic();
 		}
 		
 		else if (packet_payload->Type == 2) // I received a subscribe message
 		{
-			signal LogicHandlerModule.receivedType2Logic(packet_payload->SenderId, packet_payload->SubscribeTopic0, packet_payload->SubscribeTopic1, packet_payload->SubscribeTopic2);
+			call LogicHandlerModule.postType2Logic(packet_payload->SenderId, packet_payload->SubscribeTopic0, packet_payload->SubscribeTopic1, packet_payload->SubscribeTopic2);
 		}
 
 		else if (packet_payload->Type == 3) // I received a sub ack message
 		{
-			signal LogicHandlerModule.receivedType3Logic();
+			call LogicHandlerModule.postType3Logic();
 		}
 
 		else if (packet_payload->Type == 4) // I received a publish message
 		{
-			signal LogicHandlerModule.receivedType4Logic(packet_payload->SenderId, packet_payload->Topic, packet_payload->Value);
+			call LogicHandlerModule.postType4Logic(packet_payload->SenderId, packet_payload->Topic, packet_payload->Value);
 		}
 
 		return bufPtr;
