@@ -122,7 +122,10 @@ implementation
 		{
 			printf("ERROR: Node %d failed sending packet of Type %d to address %d, pushing to OutQueue...\n", TOS_NODE_ID,  packet_payload->Type, address);
 			
-			call OutQueueModule.pushMessage(address,packet);
+			if (call OutQueueModule.pushMessage(address,packet) != SUCCESS)
+			{
+				printf("FATAL ERROR: Node %d OutQueue buffer is full, lost packet\n", TOS_NODE_ID);
+			}
 		}
 	}
 
@@ -141,7 +144,10 @@ implementation
             {
                 printf("ERROR: Node %d failed sending packet of Type %d, pushing to OutQueue...\n", TOS_NODE_ID, packet_payload->Type);
 
-				call OutQueueModule.pushMessage(sentDestAddress, *bufPtr);
+				if (call OutQueueModule.pushMessage(sentDestAddress, *bufPtr) != SUCCESS)
+				{
+					printf("FATAL ERROR: Node %d OutQueue buffer is full, lost packet\n", TOS_NODE_ID);
+				}
             }
 		}
 	}
@@ -213,10 +219,10 @@ implementation
 
 		for (i=0; i < NUM_OF_TOPICS; i++){
 			if (call Random.rand16() % 100 < 60) {
-				packet_payload -> SubscribeTopics[i] = 1; 
+				packet_payload->SubscribeTopics[i] = 1; 
 			}
 			else{
-				packet_payload -> SubscribeTopics[i] = 0;
+				packet_payload->SubscribeTopics[i] = 0;
 			}
 		}
 
@@ -326,6 +332,8 @@ implementation
 
     void updateConnectedClients(uint16_t clientId){
 		int i = 0;
+		
+		printf("DEBUG: Client %d wants to connect\n", clientId);
 
 		for (i=0; i < MAX_CLIENTS; i++)
         {
@@ -398,7 +406,7 @@ implementation
 		
 		sendSubscribeMessage();
 
-		MY_PUBLISH_TOPIC = (uint16_t) call Random.rand16() % 3;  // Random int (0,1,2)
+		MY_PUBLISH_TOPIC = (uint16_t) call Random.rand16() % NUM_OF_TOPICS;  // Random int (0,1,2)
 		
 		call PublishTimer.startPeriodic(PUBLISH_INTERVAL);
 		
@@ -499,7 +507,15 @@ implementation
 
 		packet_payload = (PB_msg_t*)payload;
 		
-		printf("Node %d received packet of Type %d\n", TOS_NODE_ID, packet_payload->Type);
+		printf("Node %d received packet of Type %d | SenderId = %d | Topic = %d | Value = %d | SubTopics = {%d,%d,%d}\n",
+		TOS_NODE_ID,
+		packet_payload->Type,
+		packet_payload->SenderId,
+		packet_payload->Topic,
+		packet_payload->Value,
+		packet_payload->SubscribeTopics[0],
+		packet_payload->SubscribeTopics[1],
+		packet_payload->SubscribeTopics[2]);
 		
 		// Read the Type of the message received and call the correct function to handle the logic
 		if (packet_payload->Type == 0) //I received a connect message
