@@ -1,19 +1,10 @@
-/**************************************************************
-* Implement a resend buffer. The logic who uses the network modules
-* must be implemented in the event ResenModule.sendMessage in the module
-* who used the ResendModule interface.
-* 
-* This module is just a simple queue. If it has elements in it there's
-* a timer who fires evert RESEND_DELTA_TIME milliseconds. If the buffer is
-* full the command ResendModule.pushMessage returns FAIL, otherwise SUCCES.
-* It is always a good idea to check the return value of this command.
-*
-*
-*
-**************************************************************/
+
+// Implementing a circlular buffer for outgoing packets that failed the send
 
 
 #define SEND_DELTA_TIME 20 
+
+#define QUEUE_SIZE 100 
 
 
 module OutQueueModuleC
@@ -27,42 +18,33 @@ module OutQueueModuleC
 }
 implementation
 {
-    struct Node
-	{
-		uint16_t destination_address;
-		message_t packet;
-		struct Node *next;
-	};
+    uint16_t dest_buffer[QUEUE_SIZE];
+    message_t packet_buffer[QUEUE_SIZE];
 
-    struct Node *queueHead = NULL;
+    int head = 0;
+    int tail = 0;
+    bool empty = TRUE;
 
-
-    command void OutQueueModule.pushMessage(uint16_t destination_address, message_t packet)
+    command error_t OutQueueModule.pushMessage(uint16_t destination_address, message_t packet)
     {
-        struct Node* new_node = (struct Node*)malloc(sizeof(struct Node));
-		
-		struct Node* temp = queueHead;
-
-		new_node->destination_address = destination_address;
-		new_node->packet = packet;
-		new_node->next = NULL;
-
-		if (queueHead == NULL)
-		{
-			queueHead = new_node;
-			return;
-		}
-
-		while (temp->next != NULL)
+        if(head == tail && !empty)
         {
-            temp = temp->next;
+            return FAIL;
         }
-
-		temp->next = new_node;
-
-        if( !(call SendTimer.isRunning()) )
+        else
         {
-            call SendTimer.startOneShot(SEND_DELTA_TIME);
+            dest_buffer[tail] = destination_address;
+            packet_buffer[tail] = packet;
+
+            tail = (tail + 1) % QUEUE_SIZE;
+            empty = FALSE;
+
+            if( !(call SendTimer.isRunning()) )
+            {
+                call SendTimer.startOneShot(SEND_DELTA_TIME);
+            }
+
+            return SUCCESS;
         }
     }
 
@@ -72,20 +54,18 @@ implementation
         uint16_t destination_address;
         message_t packet;
 
-        destination_address = queueHead->destination_address;
-        packet = queueHead->packet;
+        destination_address = dest_buffer[head];
+        packet = packet_buffer[head];
 
-	    signal OutQueueModule.sendMessage(destination_address, packet);
+        signal OutQueueModule.sendMessage(destination_address, packet);
 
-        // Remove node from queue:
-        struct Node *temp = queueHead;
-		
-		queueHead = queueHead->next;
-		
-		free(temp);
-		
-        // If queue is not empty then restart timer
-        if (queueHead != NULL)
+        head = (head + 1) % QUEUE_SIZE;
+
+        if(head == tail)
+        {
+            empty = TRUE;
+        }
+        else
         {
             call SendTimer.startOneShot(SEND_DELTA_TIME);
         }

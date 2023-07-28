@@ -20,6 +20,7 @@ implementation
 
 	// Custom components:
 	components OutQueueModuleC;
+	components new TimerMilliC() as SendTimer;
 	
 
 	//TODO add as many timers as needed with useful names
@@ -29,7 +30,6 @@ implementation
 	components new TimerMilliC() as CheckSubscriptionTimer;		
 	components new TimerMilliC() as NodeRedTimer;			
 
-			
 
 
   
@@ -43,7 +43,9 @@ implementation
 	App.Packet -> AMSenderC;
 	App.Random -> RandomC;
 
+
 	App.OutQueueModule -> OutQueueModuleC;
+	OutQueueModuleC.SendTimer -> SendTimer;
 
 	//TODO timers updated
 	App.ConnectTimer -> ConnectTimer;

@@ -84,8 +84,6 @@ implementation
 				call NodeRedTimer.startPeriodic(NODE_RED_INTERVAL);
 			}
 
-			call SendTimer.startPeriodic(SEND_TIMER);
-
 		}
 		else
 		{
@@ -289,15 +287,6 @@ implementation
     //------------------------------------------> Timers fired:
 
 
-    event void SendTimer.fired()
-	{
-		if (remove_packet_from_queue() == FALSE){
-			return;
-		}
-
-		SendPacket(addressToSend, packetToSend);
-	}
-
 	event void ConnectTimer.fired()
 	{
 		sendConnectMessage();
@@ -380,7 +369,7 @@ implementation
 
     //-------------------------------> Receive logic functions:
 
-    task void receivedType0Logic(PB_msg_t *received_payload)
+    void receivedType0Logic(PB_msg_t *received_payload)
     {		
 		//check if I am the PAN coordinator, otherwise I shouldn't have received the message 
 		if (TOS_NODE_ID != PAN_COORDINATOR_ID)
@@ -396,7 +385,7 @@ implementation
 		sendConAckMessage(received_payload->SenderId);
 	}
 
-	task void receivedType1Logic(PB_msg_t *received_payload)
+	void receivedType1Logic(PB_msg_t *received_payload)
     {
         if (TOS_NODE_ID == PAN_COORDINATOR_ID)
 		{
@@ -417,7 +406,7 @@ implementation
 	}
 
 
-    task void receivedType2Logic(PB_msg_t *received_payload)
+    void receivedType2Logic(PB_msg_t *received_payload)
 	{
 		bool isClientConnected;
 		int i;
@@ -459,7 +448,7 @@ implementation
 	}
 
 
-    task void receivedType3Logic(PB_msg_t *received_payload)
+    void receivedType3Logic(PB_msg_t *received_payload)
 	{
 		if (TOS_NODE_ID == PAN_COORDINATOR_ID)
 		{
@@ -470,7 +459,7 @@ implementation
 		call CheckSubscriptionTimer.stop();
 	}
 
-	task void receivedType4Logic(PB_msg_t *received_payload)
+	void receivedType4Logic(PB_msg_t *received_payload)
     {
         int i;
 
@@ -515,27 +504,27 @@ implementation
 		// Read the Type of the message received and call the correct function to handle the logic
 		if (packet_payload->Type == 0) //I received a connect message
 		{
-			post receivedType0Logic(packet_payload);
+			receivedType0Logic(packet_payload);
 		}
 		
 		else if (packet_payload->Type == 1) //I received a con ack message
 		{
-			post receivedType1Logic(packet_payload);
+			receivedType1Logic(packet_payload);
 		}
 		
 		else if (packet_payload->Type == 2) // I received a subscribe message
 		{
-			post receivedType2Logic(packet_payload);
+			receivedType2Logic(packet_payload);
 		}
 
 		else if (packet_payload->Type == 3) // I received a sub ack message
 		{
-			post receivedType3Logic(packet_payload);
+			receivedType3Logic(packet_payload);
 		}
 
 		else if (packet_payload->Type == 4) // I received a publish message
 		{
-			post receivedType4Logic(packet_payload);
+			receivedType4Logic(packet_payload);
 		}
 
 		return bufPtr;
