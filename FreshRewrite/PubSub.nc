@@ -17,6 +17,7 @@ module PubSub @safe()
         interface Random;
 
 		interface OutQueueModule;
+		interface LogicHandlerModule;
 		
 		//TODO update timers
 		interface Timer<TMilli> as ConnectTimer;
@@ -386,7 +387,7 @@ implementation
 
     //-------------------------------> Receive logic functions:
 
-    void receivedType0Logic(uint16_t senderId)
+    event void LogicHandlerModule.receivedType0Logic(uint16_t senderId)
     {		
 		//check if I am the PAN coordinator, otherwise I shouldn't have received the message 
 		if (TOS_NODE_ID != PAN_COORDINATOR_ID)
@@ -402,7 +403,7 @@ implementation
 		sendConAckMessage(senderId);
 	}
 
-	void receivedType1Logic()
+	event void LogicHandlerModule.receivedType1Logic()
     {
         if (TOS_NODE_ID == PAN_COORDINATOR_ID)
 		{
@@ -423,7 +424,7 @@ implementation
 	}
 
 
-    void receivedType2Logic(uint16_t senderId, uint16_t subToTopic0, uint16_t subToTopic1, uint16_t subToTopic2)
+    event void LogicHandlerModule.receivedType2Logic(uint16_t senderId, uint16_t subToTopic0, uint16_t subToTopic1, uint16_t subToTopic2)
 	{
 		bool isClientConnected;
 		int i;
@@ -465,7 +466,7 @@ implementation
 	}
 
 
-    void receivedType3Logic()
+    event void LogicHandlerModule.receivedType3Logic()
 	{
 		if (TOS_NODE_ID == PAN_COORDINATOR_ID)
 		{
@@ -477,7 +478,7 @@ implementation
 	}
 	
 
-	void receivedType4Logic(uint16_t senderId, uint16_t topic, uint16_t value)
+	event void LogicHandlerModule.receivedType4Logic(uint16_t senderId, uint16_t topic, uint16_t value)
     {
         int i;
 
@@ -530,27 +531,27 @@ implementation
 		// Read the Type of the message received and call the correct function to handle the logic
 		if (packet_payload->Type == 0) //I received a connect message
 		{
-			receivedType0Logic(packet_payload->SenderId);
+			signal LogicHandlerModule.receivedType0Logic(packet_payload->SenderId);
 		}
 		
 		else if (packet_payload->Type == 1) //I received a con ack message
 		{
-			receivedType1Logic();
+			signal LogicHandlerModule.receivedType1Logic();
 		}
 		
 		else if (packet_payload->Type == 2) // I received a subscribe message
 		{
-			receivedType2Logic(packet_payload->SenderId, packet_payload->SubscribeTopic0, packet_payload->SubscribeTopic1, packet_payload->SubscribeTopic2);
+			signal LogicHandlerModule.receivedType2Logic(packet_payload->SenderId, packet_payload->SubscribeTopic0, packet_payload->SubscribeTopic1, packet_payload->SubscribeTopic2);
 		}
 
 		else if (packet_payload->Type == 3) // I received a sub ack message
 		{
-			receivedType3Logic();
+			signal LogicHandlerModule.receivedType3Logic();
 		}
 
 		else if (packet_payload->Type == 4) // I received a publish message
 		{
-			receivedType4Logic(packet_payload->SenderId, packet_payload->Topic, packet_payload->Value);
+			signal LogicHandlerModule.receivedType4Logic(packet_payload->SenderId, packet_payload->Topic, packet_payload->Value);
 		}
 
 		return bufPtr;

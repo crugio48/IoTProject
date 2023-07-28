@@ -21,6 +21,8 @@ implementation
 	// Custom components:
 	components OutQueueModuleC;
 	components new TimerMilliC() as SendTimer;
+
+	components LogicHandlerModuleC;
 	
 
 	//TODO add as many timers as needed with useful names
@@ -46,6 +48,8 @@ implementation
 
 	App.OutQueueModule -> OutQueueModuleC;
 	OutQueueModuleC.SendTimer -> SendTimer;
+
+	App.LogicHandlerModule -> LogicHandlerModuleC;
 
 	//TODO timers updated
 	App.ConnectTimer -> ConnectTimer;
