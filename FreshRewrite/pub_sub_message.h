@@ -9,7 +9,9 @@ typedef nx_struct PB_msg
 	nx_uint16_t SenderId;
 	nx_uint16_t Topic;  			// 0 = temperature, 1 = humidity, 2 = luminosity
 	nx_uint16_t Value;
-	nx_uint16_t SubscribeTopics[3];
+	nx_uint16_t SubscribeTopic0;
+	nx_uint16_t SubscribeTopic1;
+	nx_uint16_t SubscribeTopic2;
 } PB_msg_t;
 
 enum 
@@ -29,11 +31,6 @@ enum
 	CONNECT_DELAY = 3000, 	// Connection delay after radio is turned on
 
 	TIMEOUT = 3000, 	// Timeout time if no ack is received
-
-	SEND_TIMER = 50,	//delay to empty the queue and send the packet
-
-	QUEUE_DIM = 50,
-
 };
 
 #endif

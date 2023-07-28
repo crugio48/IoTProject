@@ -17,6 +17,12 @@ implementation
 	components ActiveMessageC;			// for managing messages and packets
 	components SerialPrintfC;			// For the printf
 	components RandomC;
+
+	// Custom components:
+	components OutQueueModuleC;
+	components new TimerMilliC() as SendTimer;
+
+	components LogicHandlerModuleC;
 	
 
 	//TODO add as many timers as needed with useful names
@@ -24,8 +30,7 @@ implementation
 	components new TimerMilliC() as CheckConnectionTimer;
 	components new TimerMilliC() as PublishTimer;		
 	components new TimerMilliC() as CheckSubscriptionTimer;		
-	components new TimerMilliC() as NodeRedTimer;
-	components new TimerMilliC() as SendTimer;				
+	components new TimerMilliC() as NodeRedTimer;			
 
 			
 
@@ -41,13 +46,16 @@ implementation
 	App.Packet -> AMSenderC;
 	App.Random -> RandomC;
 
+	App.OutQueueModule -> OutQueueModuleC;
+	OutQueueModuleC.SendTimer -> SendTimer;
+
+	App.LogicHandlerModule -> LogicHandlerModuleC;
+
 	//TODO timers updated
 	App.ConnectTimer -> ConnectTimer;
 	App.CheckConnectionTimer -> CheckConnectionTimer;
 	App.PublishTimer -> PublishTimer;
 	App.CheckSubscriptionTimer -> CheckSubscriptionTimer;
 	App.NodeRedTimer -> NodeRedTimer;
-	
-	App.SendTimer -> SendTimer;
 
 }

@@ -15,6 +15,9 @@ module PubSub @safe()
 		interface SplitControl as AMControl;
 		interface Packet;
         interface Random;
+
+		interface OutQueueModule;
+		interface LogicHandlerModule;
 		
 		//TODO update timers
 		interface Timer<TMilli> as ConnectTimer;
@@ -23,8 +26,6 @@ module PubSub @safe()
 		interface Timer<TMilli> as CheckSubscriptionTimer;
 		interface Timer<TMilli> as NodeRedTimer;
 
-		interface Timer<TMilli> as SendTimer;
-
 	}
 }
 
@@ -32,7 +33,10 @@ module PubSub @safe()
 implementation
 {
     message_t* sentPacket;
-	bool isRadioLocked = FALSE;
+	uint16_t sentDestAddress;
+
+	// Variables to use when sending packets
+	message_t pktToSend;
 
 	struct Subscriptions
 	{
@@ -53,52 +57,6 @@ implementation
     uint16_t MY_PUBLISH_TOPIC;
 
 	uint16_t PAN_COORDINATOR_ID = 1;	// Node 1 is the pan coordinator in the simulation
-
-	message_t *out_queue[QUEUE_DIM] = { NULL };
-	uint16_t out_queue_address[QUEUE_DIM] = { 0 };
-	
-	message_t packetToSend;
-	uint16_t addressToSend;
-
-
-	int bufferSize = 0;
-
-	bool add_packet_to_queue(uint16_t address, message_t * packet)
-	{
-		if (bufferSize < QUEUE_DIM)
-		{
-        	out_queue[bufferSize] = packet;
-			out_queue_address[bufferSize] = address;
-			
-			bufferSize++;
-        	return TRUE; // Successfully added the packet
-        	
-		} else {
-			return FALSE; // Buffer is full, packet cannot be added
-		}
-	}
-
-	
-
-	bool remove_packet_from_queue()
-	{
-		int i;
-		packetToSend = *out_queue[0];
-		addressToSend = out_queue_address[0];
-		
-		if (addressToSend == 0) {
-			return FALSE;
-		}
-		
-		for (i = 0; i < QUEUE_DIM - 1 && out_queue[i] != NULL; i++) {
-			out_queue[i] = out_queue[i + 1];
-			out_queue_address[i] = out_queue_address[i + 1];
-			
-		}
-		bufferSize--;
-		return TRUE; 
-		
-	}
 
 	
     //-------------------------------> Booting events:
@@ -126,8 +84,6 @@ implementation
 				call NodeRedTimer.startPeriodic(NODE_RED_INTERVAL);
 			}
 
-			call SendTimer.startPeriodic(SEND_TIMER);
-
 		}
 		else
 		{
@@ -154,51 +110,55 @@ implementation
 		// Get the payload of the packet to debug the send with the type of packet being sent
 		PB_msg_t* packet_payload = (PB_msg_t*)call Packet.getPayload(&packet, sizeof(PB_msg_t));
 		
-		printf("AAAAA: RadioLocked value = %d\n", isRadioLocked);
-		
-		if (isRadioLocked)
-		{
-			printf("WARNING: Node %d found radio locked so did not send a packet of Type %d\n", TOS_NODE_ID, packet_payload->Type);
-			return;
-		}
-		
+		pktToSend = packet;
 
 		// Try to start sending packet, if successfull then lock radio access
-		if (call AMSend.send(address, &packet, sizeof(PB_msg_t)) == SUCCESS)
+		if (call AMSend.send((uint16_t) address, &pktToSend, sizeof(PB_msg_t)) == SUCCESS)
 		{
-			sentPacket = &packet;
-			isRadioLocked = TRUE;			// lock the radio
+			sentPacket = &pktToSend;
+			sentDestAddress = address;
 			
 			printf("Node %d sending packet of Type %d to address %d\n", TOS_NODE_ID, packet_payload->Type, address);
 		}
 		else
 		{
-			printf("ERROR: Node %d failed sending packet of Type %d to address %d in AMSend.send\n", TOS_NODE_ID,  packet_payload->Type, address);
+			printf("ERROR: Node %d failed sending packet of Type %d to address %d, pushing to OutQueue...\n", TOS_NODE_ID,  packet_payload->Type, address);
+			
+			if (call OutQueueModule.pushMessage(address, pktToSend) != SUCCESS)
+			{
+				printf("FATAL ERROR: Node %d OutQueue buffer is full, lost packet\n", TOS_NODE_ID);
+			}
 		}
-
 	}
 
-    event void AMSend.sendDone(message_t* bufPtr, error_t error)
+    event void AMSend.sendDone(message_t* buf, error_t error)
 	{
 		// Get the payload of the packet to debug the send with the type of packet sent
-		PB_msg_t* packet_payload = (PB_msg_t*)call Packet.getPayload(bufPtr, sizeof(PB_msg_t));
+		PB_msg_t* packet_payload = (PB_msg_t*)call Packet.getPayload(buf, sizeof(PB_msg_t));
 		
-		// Unlock the radio if send is done correctly
-		if (sentPacket == bufPtr)
+		if (sentPacket == buf)
 		{
-            isRadioLocked = FALSE;
-
             if (error == SUCCESS)
             {
                 printf("Node %d sent packet of Type %d successfully\n", TOS_NODE_ID, packet_payload->Type);
             }
             else
             {
-                printf("ERROR: Node %d failed sending packet of Type %d in AMSend.sendDone\n", TOS_NODE_ID, packet_payload->Type);
-            }
+                printf("ERROR: Node %d failed sending packet of Type %d, pushing to OutQueue...\n", TOS_NODE_ID, packet_payload->Type);
 
+				if (call OutQueueModule.pushMessage(sentDestAddress, *buf) != SUCCESS)
+				{
+					printf("FATAL ERROR: Node %d OutQueue buffer is full, lost packet\n", TOS_NODE_ID);
+				}
+            }
 		}
 	}
+
+
+	event void OutQueueModule.sendMessage(uint16_t destination_address, message_t packet)
+    {
+        SendPacket(destination_address, packet);
+    }
 
 
 
@@ -220,9 +180,7 @@ implementation
 		packet_payload->Type = 0;
 		packet_payload->SenderId = TOS_NODE_ID;
 
-		if (add_packet_to_queue(PAN_COORDINATOR_ID, &packet) == FALSE){
-			printf("ERROR: Node %d failed to add packet to queue, the queue is full\n", TOS_NODE_ID);
-		}
+		SendPacket(PAN_COORDINATOR_ID, packet);
 
 		call CheckConnectionTimer.startOneShot(TIMEOUT);
 	}
@@ -241,16 +199,12 @@ implementation
 		
 		packet_payload->Type = 1;
 
-
-		if ( add_packet_to_queue(clientId, &packet) == FALSE){
-			printf("ERROR: Node %d failed to add packet to queue, the queue is full\n", TOS_NODE_ID);
-		}
+		SendPacket(clientId, packet);
 	}
 
 	void sendSubscribeMessage()
 	{
 		message_t packet;
-		int i;
 				
 		PB_msg_t* packet_payload = (PB_msg_t*)call Packet.getPayload(&packet, sizeof(PB_msg_t));
 		
@@ -262,21 +216,27 @@ implementation
 		
 		packet_payload->Type = 2;
 		packet_payload->SenderId = TOS_NODE_ID;
-
-
-		for (i=0; i < NUM_OF_TOPICS; i++){
-			if (call Random.rand16() % 100 < 60) {
-				packet_payload -> SubscribeTopics[i] = 1; 
-			}
-			else{
-				packet_payload -> SubscribeTopics[i] = 0;
-			}
+		
+		packet_payload->SubscribeTopic0 = 0;
+		packet_payload->SubscribeTopic1 = 0;
+		packet_payload->SubscribeTopic2 = 0;
+		
+		if (call Random.rand16() % 100 < 60)
+		{
+			packet_payload->SubscribeTopic0 = 1;
+		}
+		
+		if (call Random.rand16() % 100 < 60)
+		{
+			packet_payload->SubscribeTopic1 = 1;
+		}
+		
+		if (call Random.rand16() % 100 < 60)
+		{
+			packet_payload->SubscribeTopic2 = 1;
 		}
 
-		if (add_packet_to_queue(PAN_COORDINATOR_ID, &packet) == FALSE){
-			printf("ERROR: Node %d failed to add packet to queue, the queue is full\n", TOS_NODE_ID);
-		}
-
+		SendPacket(PAN_COORDINATOR_ID, packet);
 
 		call CheckSubscriptionTimer.startOneShot(TIMEOUT);
 	}
@@ -295,15 +255,10 @@ implementation
 		
 		packet_payload->Type = 3;
 
-		if ( add_packet_to_queue(clientId, &packet) == FALSE){
-			printf("ERROR: Node %d failed to add packet to queue, the queue is full\n", TOS_NODE_ID);
-		}
-
-
-
+		SendPacket(clientId, packet);
 	}
 
-	void forwardPublishMessage(PB_msg_t* payload_to_forward, uint16_t targetAddress)
+	void forwardPublishMessage(uint16_t senderId, uint16_t topic, uint16_t value, uint16_t targetAddress)
     {
 		message_t packet;
 
@@ -316,13 +271,11 @@ implementation
 		}
 		
 		packet_payload->Type = 4;
-		packet_payload->SenderId = payload_to_forward->SenderId;
-		packet_payload->Topic = payload_to_forward->Topic;
-		packet_payload->Value = payload_to_forward->Value;
+		packet_payload->SenderId = senderId;
+		packet_payload->Topic = topic;
+		packet_payload->Value = value;
 
-		if ( add_packet_to_queue(targetAddress, &packet) == FALSE){
-			printf("ERROR: Node %d failed to add packet to queue, the queue is full\n", TOS_NODE_ID);
-		}
+		SendPacket(targetAddress, packet);
 	}
 
 	void sendPublishMessage()
@@ -343,30 +296,12 @@ implementation
 		packet_payload->Value = (uint16_t) call Random.rand16() % 100;   // Random number [0,100)
 
 
-		if ( add_packet_to_queue(PAN_COORDINATOR_ID, &packet) == FALSE){
-			printf("ERROR: Node %d failed to add packet to queue, the queue is full\n", TOS_NODE_ID);
-		}
-
-
+		SendPacket(PAN_COORDINATOR_ID, packet);
 	}
 
 
     //------------------------------------------> Timers fired:
 
-
-    event void SendTimer.fired()
-	{
-		if (isRadioLocked){
-			printf("DEBUG: The radio was locked");
-			return;
-		}
-
-		if (remove_packet_from_queue() == FALSE){
-			return;
-		}
-
-		SendPacket(addressToSend, packetToSend);
-	}
 
 	event void ConnectTimer.fired()
 	{
@@ -407,6 +342,8 @@ implementation
 
     void updateConnectedClients(uint16_t clientId){
 		int i = 0;
+		
+		printf("DEBUG: Client %d wants to connect\n", clientId);
 
 		for (i=0; i < MAX_CLIENTS; i++)
         {
@@ -450,7 +387,7 @@ implementation
 
     //-------------------------------> Receive logic functions:
 
-    void receivedType0Logic(PB_msg_t *received_payload)
+    event void LogicHandlerModule.receivedType0Logic(uint16_t senderId)
     {		
 		//check if I am the PAN coordinator, otherwise I shouldn't have received the message 
 		if (TOS_NODE_ID != PAN_COORDINATOR_ID)
@@ -461,12 +398,12 @@ implementation
 		//I am the PAN coordinator update of the connected clients...
 		//parsing the message and adding to the connected clients the clientId of the client that sent the message
 
-		updateConnectedClients(received_payload->SenderId);
+		updateConnectedClients(senderId);
 		
-		sendConAckMessage(received_payload->SenderId);
+		sendConAckMessage(senderId);
 	}
 
-	void receivedType1Logic(PB_msg_t *received_payload)
+	event void LogicHandlerModule.receivedType1Logic()
     {
         if (TOS_NODE_ID == PAN_COORDINATOR_ID)
 		{
@@ -479,7 +416,7 @@ implementation
 		
 		sendSubscribeMessage();
 
-		MY_PUBLISH_TOPIC = (uint16_t) call Random.rand16() % 3;  // Random int (0,1,2)
+		MY_PUBLISH_TOPIC = (uint16_t) call Random.rand16() % NUM_OF_TOPICS;  // Random int (0,1,2)
 		
 		call PublishTimer.startPeriodic(PUBLISH_INTERVAL);
 		
@@ -487,7 +424,7 @@ implementation
 	}
 
 
-    void receivedType2Logic(PB_msg_t *received_payload)
+    event void LogicHandlerModule.receivedType2Logic(uint16_t senderId, uint16_t subToTopic0, uint16_t subToTopic1, uint16_t subToTopic2)
 	{
 		bool isClientConnected;
 		int i;
@@ -502,34 +439,34 @@ implementation
 
 		for (i = 0; i < MAX_CLIENTS; i++)
 		{
-			if (connectedClients[i] == received_payload->SenderId) isClientConnected = TRUE;
+			if (connectedClients[i] == senderId) isClientConnected = TRUE;
 		}
 
 		if (!isClientConnected)
 		{
-			printf("ERROR: Node %d tried to subscribe without being connected\n", received_payload->SenderId);
+			printf("ERROR: Node %d tried to subscribe without being connected\n", senderId);
 			return;
 		}
 
 		printf("DEBUG: Node %d subscribe request content: Topic 0: %d | Topic 1: %d | Topic 2: %d\n",
-		received_payload->SenderId,
-		received_payload->SubscribeTopics[0],
-		received_payload->SubscribeTopics[1],
-		received_payload->SubscribeTopics[2]);
+		senderId,
+		subToTopic0,
+		subToTopic1,
+		subToTopic2);
 
 
-		if (received_payload->SubscribeTopics[0] == 1) SubscribeClientToTopic(received_payload->SenderId, 0);
+		if (subToTopic0 == 1) SubscribeClientToTopic(senderId, 0);
 		
-		if (received_payload->SubscribeTopics[1] == 1) SubscribeClientToTopic(received_payload->SenderId, 1);
+		if (subToTopic1 == 1) SubscribeClientToTopic(senderId, 1);
 
-		if (received_payload->SubscribeTopics[2] == 1) SubscribeClientToTopic(received_payload->SenderId, 2);
+		if (subToTopic2 == 1) SubscribeClientToTopic(senderId, 2);
 		
 
-		SendSubackMessage(received_payload->SenderId);
+		SendSubackMessage(senderId);
 	}
 
 
-    void receivedType3Logic(PB_msg_t *received_payload)
+    event void LogicHandlerModule.receivedType3Logic()
 	{
 		if (TOS_NODE_ID == PAN_COORDINATOR_ID)
 		{
@@ -539,8 +476,9 @@ implementation
 
 		call CheckSubscriptionTimer.stop();
 	}
+	
 
-	void receivedType4Logic(PB_msg_t *received_payload)
+	event void LogicHandlerModule.receivedType4Logic(uint16_t senderId, uint16_t topic, uint16_t value)
     {
         int i;
 
@@ -549,17 +487,17 @@ implementation
 			//forward the publish to all the subscribed at that topic
 			for (i=0; i < MAX_SUBSCRIPTIONS; i++)
 			{
-				if (subscriptions[i].clientId != received_payload->SenderId && subscriptions[i].clientId != 0 && subscriptions[i].topic == received_payload->Topic)
+				if (subscriptions[i].clientId != senderId && subscriptions[i].clientId != 0 && subscriptions[i].topic == topic)
 				{					
-					forwardPublishMessage(received_payload, subscriptions[i].clientId);
+					forwardPublishMessage(senderId, topic, value, subscriptions[i].clientId);
 				}
 			}
 
-			latestValues[received_payload->Topic] = received_payload->Value;
+			latestValues[topic] = value;
 
 		}
 		else{
-			printf("Client %d received publish. Topic: %d, Value: %d\n", TOS_NODE_ID, received_payload->Topic, received_payload->Value);
+			printf("Client %d received publish. Topic: %d, Value: %d\n", TOS_NODE_ID, topic, value);
 		}
 
 	}
@@ -569,7 +507,7 @@ implementation
     //-------------------------> Receive event:
 
     event message_t* Receive.receive(message_t* bufPtr, void* payload, uint8_t len)
-	{
+	{		
 		PB_msg_t* packet_payload;
 		
 		if (len != sizeof(PB_msg_t)) 
@@ -580,32 +518,40 @@ implementation
 
 		packet_payload = (PB_msg_t*)payload;
 		
-		printf("Node %d received packet of Type %d\n", TOS_NODE_ID, packet_payload->Type);
+		printf("Node %d received packet of Type %d | SenderId = %d | Topic = %d | Value = %d | SubTopics = {%d,%d,%d}\n",
+		TOS_NODE_ID,
+		packet_payload->Type,
+		packet_payload->SenderId,
+		packet_payload->Topic,
+		packet_payload->Value,
+		packet_payload->SubscribeTopic0,
+		packet_payload->SubscribeTopic1,
+		packet_payload->SubscribeTopic2);
 		
 		// Read the Type of the message received and call the correct function to handle the logic
 		if (packet_payload->Type == 0) //I received a connect message
 		{
-			receivedType0Logic(packet_payload);
+			call LogicHandlerModule.postType0Logic(packet_payload->SenderId);
 		}
 		
 		else if (packet_payload->Type == 1) //I received a con ack message
 		{
-			receivedType1Logic(packet_payload);
+			call LogicHandlerModule.postType1Logic();
 		}
 		
 		else if (packet_payload->Type == 2) // I received a subscribe message
 		{
-			receivedType2Logic(packet_payload);
+			call LogicHandlerModule.postType2Logic(packet_payload->SenderId, packet_payload->SubscribeTopic0, packet_payload->SubscribeTopic1, packet_payload->SubscribeTopic2);
 		}
 
 		else if (packet_payload->Type == 3) // I received a sub ack message
 		{
-			receivedType3Logic(packet_payload);
+			call LogicHandlerModule.postType3Logic();
 		}
 
 		else if (packet_payload->Type == 4) // I received a publish message
 		{
-			receivedType4Logic(packet_payload);
+			call LogicHandlerModule.postType4Logic(packet_payload->SenderId, packet_payload->Topic, packet_payload->Value);
 		}
 
 		return bufPtr;
