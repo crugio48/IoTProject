@@ -29,11 +29,6 @@ enum
 	CONNECT_DELAY = 3000, 	// Connection delay after radio is turned on
 
 	TIMEOUT = 3000, 	// Timeout time if no ack is received
-
-	SEND_TIMER = 50,	//delay to empty the queue and send the packet
-
-	QUEUE_DIM = 50,
-
 };
 
 #endif
