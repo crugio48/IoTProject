@@ -4,6 +4,8 @@ CFLAGS += -I$(TOSDIR)/lib/printf
 
 CFLAGS += -I./Imports
 
+CFLAGS += -DTOSH_DATA_LENGTH=14
+
 #CFLAGS += -DNEW_PRINTF_SEMANTICS
 
 include $(MAKERULES)

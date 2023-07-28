@@ -34,9 +34,8 @@ implementation
     message_t* sentPacket;
 	uint16_t sentDestAddress;
 
-	// Variables to use when sending packets MAYBE
+	// Variables to use when sending packets
 	message_t pktToSend;
-	message_t pktToResend;
 
 	struct Subscriptions
 	{
@@ -109,11 +108,13 @@ implementation
 	{
 		// Get the payload of the packet to debug the send with the type of packet being sent
 		PB_msg_t* packet_payload = (PB_msg_t*)call Packet.getPayload(&packet, sizeof(PB_msg_t));
+		
+		pktToSend = packet;
 
 		// Try to start sending packet, if successfull then lock radio access
-		if (call AMSend.send(address, &packet, sizeof(PB_msg_t)) == SUCCESS)
+		if (call AMSend.send(address, &pktToSend, sizeof(PB_msg_t)) == SUCCESS)
 		{
-			sentPacket = &packet;
+			sentPacket = &pktToSend;
 			sentDestAddress = address;
 			
 			printf("Node %d sending packet of Type %d to address %d\n", TOS_NODE_ID, packet_payload->Type, address);
@@ -122,19 +123,19 @@ implementation
 		{
 			printf("ERROR: Node %d failed sending packet of Type %d to address %d, pushing to OutQueue...\n", TOS_NODE_ID,  packet_payload->Type, address);
 			
-			if (call OutQueueModule.pushMessage(address,packet) != SUCCESS)
+			if (call OutQueueModule.pushMessage(address, pktToSend) != SUCCESS)
 			{
 				printf("FATAL ERROR: Node %d OutQueue buffer is full, lost packet\n", TOS_NODE_ID);
 			}
 		}
 	}
 
-    event void AMSend.sendDone(message_t* bufPtr, error_t error)
+    event void AMSend.sendDone(message_t* buf, error_t error)
 	{
 		// Get the payload of the packet to debug the send with the type of packet sent
-		PB_msg_t* packet_payload = (PB_msg_t*)call Packet.getPayload(bufPtr, sizeof(PB_msg_t));
+		PB_msg_t* packet_payload = (PB_msg_t*)call Packet.getPayload(buf, sizeof(PB_msg_t));
 		
-		if (sentPacket == bufPtr)
+		if (sentPacket == buf)
 		{
             if (error == SUCCESS)
             {
@@ -144,7 +145,7 @@ implementation
             {
                 printf("ERROR: Node %d failed sending packet of Type %d, pushing to OutQueue...\n", TOS_NODE_ID, packet_payload->Type);
 
-				if (call OutQueueModule.pushMessage(sentDestAddress, *bufPtr) != SUCCESS)
+				if (call OutQueueModule.pushMessage(sentDestAddress, *buf) != SUCCESS)
 				{
 					printf("FATAL ERROR: Node %d OutQueue buffer is full, lost packet\n", TOS_NODE_ID);
 				}
@@ -203,7 +204,6 @@ implementation
 	void sendSubscribeMessage()
 	{
 		message_t packet;
-		int i;
 				
 		PB_msg_t* packet_payload = (PB_msg_t*)call Packet.getPayload(&packet, sizeof(PB_msg_t));
 		
@@ -215,15 +215,24 @@ implementation
 		
 		packet_payload->Type = 2;
 		packet_payload->SenderId = TOS_NODE_ID;
-
-
-		for (i=0; i < NUM_OF_TOPICS; i++){
-			if (call Random.rand16() % 100 < 60) {
-				packet_payload->SubscribeTopics[i] = 1; 
-			}
-			else{
-				packet_payload->SubscribeTopics[i] = 0;
-			}
+		
+		packet_payload->SubscribeTopic0 = 0;
+		packet_payload->SubscribeTopic1 = 0;
+		packet_payload->SubscribeTopic2 = 0;
+		
+		if (call Random.rand16() % 100 < 60)
+		{
+			packet_payload->SubscribeTopic0 = 1;
+		}
+		
+		if (call Random.rand16() % 100 < 60)
+		{
+			packet_payload->SubscribeTopic1 = 1;
+		}
+		
+		if (call Random.rand16() % 100 < 60)
+		{
+			packet_payload->SubscribeTopic2 = 1;
 		}
 
 		SendPacket(PAN_COORDINATOR_ID, packet);
@@ -248,7 +257,7 @@ implementation
 		SendPacket(clientId, packet);
 	}
 
-	void forwardPublishMessage(PB_msg_t* payload_to_forward, uint16_t targetAddress)
+	void forwardPublishMessage(uint16_t senderId, uint16_t topic, uint16_t value, uint16_t targetAddress)
     {
 		message_t packet;
 
@@ -261,9 +270,9 @@ implementation
 		}
 		
 		packet_payload->Type = 4;
-		packet_payload->SenderId = payload_to_forward->SenderId;
-		packet_payload->Topic = payload_to_forward->Topic;
-		packet_payload->Value = payload_to_forward->Value;
+		packet_payload->SenderId = senderId;
+		packet_payload->Topic = topic;
+		packet_payload->Value = value;
 
 		SendPacket(targetAddress, packet);
 	}
@@ -377,7 +386,7 @@ implementation
 
     //-------------------------------> Receive logic functions:
 
-    void receivedType0Logic(PB_msg_t *received_payload)
+    void receivedType0Logic(uint16_t senderId)
     {		
 		//check if I am the PAN coordinator, otherwise I shouldn't have received the message 
 		if (TOS_NODE_ID != PAN_COORDINATOR_ID)
@@ -388,12 +397,12 @@ implementation
 		//I am the PAN coordinator update of the connected clients...
 		//parsing the message and adding to the connected clients the clientId of the client that sent the message
 
-		updateConnectedClients(received_payload->SenderId);
+		updateConnectedClients(senderId);
 		
-		sendConAckMessage(received_payload->SenderId);
+		sendConAckMessage(senderId);
 	}
 
-	void receivedType1Logic(PB_msg_t *received_payload)
+	void receivedType1Logic()
     {
         if (TOS_NODE_ID == PAN_COORDINATOR_ID)
 		{
@@ -414,7 +423,7 @@ implementation
 	}
 
 
-    void receivedType2Logic(PB_msg_t *received_payload)
+    void receivedType2Logic(uint16_t senderId, uint16_t subToTopic0, uint16_t subToTopic1, uint16_t subToTopic2)
 	{
 		bool isClientConnected;
 		int i;
@@ -429,34 +438,34 @@ implementation
 
 		for (i = 0; i < MAX_CLIENTS; i++)
 		{
-			if (connectedClients[i] == received_payload->SenderId) isClientConnected = TRUE;
+			if (connectedClients[i] == senderId) isClientConnected = TRUE;
 		}
 
 		if (!isClientConnected)
 		{
-			printf("ERROR: Node %d tried to subscribe without being connected\n", received_payload->SenderId);
+			printf("ERROR: Node %d tried to subscribe without being connected\n", senderId);
 			return;
 		}
 
 		printf("DEBUG: Node %d subscribe request content: Topic 0: %d | Topic 1: %d | Topic 2: %d\n",
-		received_payload->SenderId,
-		received_payload->SubscribeTopics[0],
-		received_payload->SubscribeTopics[1],
-		received_payload->SubscribeTopics[2]);
+		senderId,
+		subToTopic0,
+		subToTopic1,
+		subToTopic2);
 
 
-		if (received_payload->SubscribeTopics[0] == 1) SubscribeClientToTopic(received_payload->SenderId, 0);
+		if (subToTopic0 == 1) SubscribeClientToTopic(senderId, 0);
 		
-		if (received_payload->SubscribeTopics[1] == 1) SubscribeClientToTopic(received_payload->SenderId, 1);
+		if (subToTopic1 == 1) SubscribeClientToTopic(senderId, 1);
 
-		if (received_payload->SubscribeTopics[2] == 1) SubscribeClientToTopic(received_payload->SenderId, 2);
+		if (subToTopic2 == 1) SubscribeClientToTopic(senderId, 2);
 		
 
-		SendSubackMessage(received_payload->SenderId);
+		SendSubackMessage(senderId);
 	}
 
 
-    void receivedType3Logic(PB_msg_t *received_payload)
+    void receivedType3Logic()
 	{
 		if (TOS_NODE_ID == PAN_COORDINATOR_ID)
 		{
@@ -466,8 +475,9 @@ implementation
 
 		call CheckSubscriptionTimer.stop();
 	}
+	
 
-	void receivedType4Logic(PB_msg_t *received_payload)
+	void receivedType4Logic(uint16_t senderId, uint16_t topic, uint16_t value)
     {
         int i;
 
@@ -476,17 +486,17 @@ implementation
 			//forward the publish to all the subscribed at that topic
 			for (i=0; i < MAX_SUBSCRIPTIONS; i++)
 			{
-				if (subscriptions[i].clientId != received_payload->SenderId && subscriptions[i].clientId != 0 && subscriptions[i].topic == received_payload->Topic)
+				if (subscriptions[i].clientId != senderId && subscriptions[i].clientId != 0 && subscriptions[i].topic == topic)
 				{					
-					forwardPublishMessage(received_payload, subscriptions[i].clientId);
+					forwardPublishMessage(senderId, topic, value, subscriptions[i].clientId);
 				}
 			}
 
-			latestValues[received_payload->Topic] = received_payload->Value;
+			latestValues[topic] = value;
 
 		}
 		else{
-			printf("Client %d received publish. Topic: %d, Value: %d\n", TOS_NODE_ID, received_payload->Topic, received_payload->Value);
+			printf("Client %d received publish. Topic: %d, Value: %d\n", TOS_NODE_ID, topic, value);
 		}
 
 	}
@@ -496,7 +506,7 @@ implementation
     //-------------------------> Receive event:
 
     event message_t* Receive.receive(message_t* bufPtr, void* payload, uint8_t len)
-	{
+	{		
 		PB_msg_t* packet_payload;
 		
 		if (len != sizeof(PB_msg_t)) 
@@ -513,34 +523,34 @@ implementation
 		packet_payload->SenderId,
 		packet_payload->Topic,
 		packet_payload->Value,
-		packet_payload->SubscribeTopics[0],
-		packet_payload->SubscribeTopics[1],
-		packet_payload->SubscribeTopics[2]);
+		packet_payload->SubscribeTopic0,
+		packet_payload->SubscribeTopic1,
+		packet_payload->SubscribeTopic2);
 		
 		// Read the Type of the message received and call the correct function to handle the logic
 		if (packet_payload->Type == 0) //I received a connect message
 		{
-			receivedType0Logic(packet_payload);
+			receivedType0Logic(packet_payload->SenderId);
 		}
 		
 		else if (packet_payload->Type == 1) //I received a con ack message
 		{
-			receivedType1Logic(packet_payload);
+			receivedType1Logic();
 		}
 		
 		else if (packet_payload->Type == 2) // I received a subscribe message
 		{
-			receivedType2Logic(packet_payload);
+			receivedType2Logic(packet_payload->SenderId, packet_payload->SubscribeTopic0, packet_payload->SubscribeTopic1, packet_payload->SubscribeTopic2);
 		}
 
 		else if (packet_payload->Type == 3) // I received a sub ack message
 		{
-			receivedType3Logic(packet_payload);
+			receivedType3Logic();
 		}
 
 		else if (packet_payload->Type == 4) // I received a publish message
 		{
-			receivedType4Logic(packet_payload);
+			receivedType4Logic(packet_payload->SenderId, packet_payload->Topic, packet_payload->Value);
 		}
 
 		return bufPtr;

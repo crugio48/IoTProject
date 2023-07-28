@@ -9,7 +9,9 @@ typedef nx_struct PB_msg
 	nx_uint16_t SenderId;
 	nx_uint16_t Topic;  			// 0 = temperature, 1 = humidity, 2 = luminosity
 	nx_uint16_t Value;
-	nx_uint16_t SubscribeTopics[3];
+	nx_uint16_t SubscribeTopic0;
+	nx_uint16_t SubscribeTopic1;
+	nx_uint16_t SubscribeTopic2;
 } PB_msg_t;
 
 enum 
