@@ -47,7 +47,7 @@ node_red_out = open(node_red_file, "w")
 
 #Add debug channel
 print("Activate debug message for 'debug' that will output to ", debug_outfile," general debug data")
-t.addChannel("debug", simulation_out)
+t.addChannel("debug", debug_out)
 
 print("Activate debug message for 'simulation' that will output to ", simulation_outfile," the useful simulation info")
 t.addChannel("simulation", simulation_out)
@@ -112,6 +112,8 @@ print("Start simulation with TOSSIM! \n\n\n")
 
 nextLine = 0
 
+prevElapsedTime = 0
+
 
 for i in range(0,100000):
 	t.runNextEvent()
@@ -129,6 +131,14 @@ for i in range(0,100000):
 			sock.close()
 			
 			nextLine += 1
+	
+	elapsedTime = float(t.time()) / float(t.ticksPerSecond())
+	
+	print(elapsedTime)
+	
+	time.sleep(elapsedTime - prevElapsedTime)
+	
+	prevElapsedTime = elapsedTime
 	
 	
 print("\n\n\nSimulation finished!")

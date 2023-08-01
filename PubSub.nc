@@ -350,12 +350,9 @@ implementation
 		int i;
 		
 		dbg("debug", "Node %d is sending the periodic update to node red\n", TOS_NODE_ID);
+		
+		dbg_clear("node_red", "%d:%d,%d:%d,%d:%d\n", 0, latestValues[0], 1, latestValues[1], 2, latestValues[2]);
 
-		for(i = 0; i < NUM_OF_TOPICS; i++)
-		{
-			dbg_clear("node_red", "%d:%d\n", i, latestValues[i]);
-		}
-		//printfflush();
 	}
 
 
