@@ -68,7 +68,7 @@ implementation
 
     event void Boot.booted()
 	{
-		dbg("stdout", "Application of node %d booted.\n", TOS_NODE_ID);
+		dbg("debug", "Application of node %d booted.\n", TOS_NODE_ID);
 		call AMControl.start();
 	}
 
@@ -77,7 +77,7 @@ implementation
 	{
 		if (err == SUCCESS)
 		{
-			dbg("stdout", "Radio of node %d started.\n", TOS_NODE_ID);
+			dbg("debug", "Radio of node %d started.\n", TOS_NODE_ID);
 
 			if (TOS_NODE_ID != PAN_COORDINATOR_ID)
 			{
@@ -101,7 +101,7 @@ implementation
 
     event void AMControl.stopDone(error_t err)
 	{
-		dbg("stdout", "Radio of node %d stopped.\n", TOS_NODE_ID);
+		dbg("debug", "Radio of node %d stopped.\n", TOS_NODE_ID);
 		// do nothing
 	}
 
@@ -117,11 +117,11 @@ implementation
 		
 		if (isRadioLocked)
 		{
-			dbg("stdout", "WARNING: Node %d found radio locked when sending packet of Type %d to address %d, pushing to OutQueue...\n", TOS_NODE_ID,  packet_payload->Type, address);
+			dbg("debug", "WARNING: Node %d found radio locked when sending packet of Type %d to address %d, pushing to OutQueue...\n", TOS_NODE_ID,  packet_payload->Type, address);
 			
 			if (call OutQueueModule.pushMessage(address, packet) != SUCCESS)
 			{
-				dbg("stdout", "FATAL ERROR: Node %d OutQueue buffer is full, lost packet\n", TOS_NODE_ID);
+				dbg("debug", "FATAL ERROR: Node %d OutQueue buffer is full, lost packet\n", TOS_NODE_ID);
 			}
 			
 			return;
@@ -137,15 +137,15 @@ implementation
 			sentPacket = &pktToSend;
 			sentDestAddress = address;
 			
-			dbg("stdout", "Node %d sending packet of Type %d to address %d\n", TOS_NODE_ID, packet_payload->Type, address);
+			dbg("debug", "Node %d sending packet of Type %d to address %d\n", TOS_NODE_ID, packet_payload->Type, address);
 		}
 		else
 		{
-			dbg("stdout", "WARNING: Node %d failed sending packet of Type %d to address %d, pushing to OutQueue...\n", TOS_NODE_ID,  packet_payload->Type, address);
+			dbg("debug", "WARNING: Node %d failed sending packet of Type %d to address %d, pushing to OutQueue...\n", TOS_NODE_ID,  packet_payload->Type, address);
 			
 			if (call OutQueueModule.pushMessage(address, pktToSend) != SUCCESS)
 			{
-				dbg("stdout", "ERROR: Node %d OutQueue buffer is full, lost packet\n", TOS_NODE_ID);
+				dbg("debug", "ERROR: Node %d OutQueue buffer is full, lost packet\n", TOS_NODE_ID);
 			}
 		}
 	}
@@ -161,15 +161,15 @@ implementation
 			
             if (error == SUCCESS)
             {
-                dbg("stdout", "Node %d sent packet of Type %d successfully\n", TOS_NODE_ID, packet_payload->Type);
+                dbg("debug", "Node %d sent packet of Type %d successfully\n", TOS_NODE_ID, packet_payload->Type);
             }
             else
             {
-                dbg("stdout", "WARNING: Node %d failed sending packet of Type %d, pushing to OutQueue...\n", TOS_NODE_ID, packet_payload->Type);
+                dbg("debug", "WARNING: Node %d failed sending packet of Type %d, pushing to OutQueue...\n", TOS_NODE_ID, packet_payload->Type);
 
 				if (call OutQueueModule.pushMessage(sentDestAddress, *buf) != SUCCESS)
 				{
-					dbg("stdout", "ERROR: Node %d OutQueue buffer is full, lost packet\n", TOS_NODE_ID);
+					dbg("debug", "ERROR: Node %d OutQueue buffer is full, lost packet\n", TOS_NODE_ID);
 				}
             }
 		}
@@ -194,7 +194,7 @@ implementation
 		
 		if (packet_payload == NULL)
 		{
-			dbg("stdout", "ERROR: Node %d failed allocating a packed payload\n", TOS_NODE_ID);
+			dbg("debug", "ERROR: Node %d failed allocating a packed payload\n", TOS_NODE_ID);
 			return;
 		}
 		
@@ -214,7 +214,7 @@ implementation
 		
 		if (packet_payload == NULL)
 		{
-			dbg("stdout", "ERROR: Node %d failed allocating a packed payload\n", TOS_NODE_ID);
+			dbg("debug", "ERROR: Node %d failed allocating a packed payload\n", TOS_NODE_ID);
 			return;
 		}
 		
@@ -231,7 +231,7 @@ implementation
 		
 		if (packet_payload == NULL)
 		{
-			dbg("stdout", "ERROR: Node %d failed allocating a packed payload\n", TOS_NODE_ID);
+			dbg("debug", "ERROR: Node %d failed allocating a packed payload\n", TOS_NODE_ID);
 			return;
 		}
 		
@@ -270,7 +270,7 @@ implementation
 		
 		if (packet_payload == NULL)
 		{
-			dbg("stdout", "ERROR: Node %d failed allocating a packed payload\n", TOS_NODE_ID);
+			dbg("debug", "ERROR: Node %d failed allocating a packed payload\n", TOS_NODE_ID);
 			return;
 		}
 		
@@ -287,7 +287,7 @@ implementation
 		
 		if (packet_payload == NULL)
 		{
-			dbg("stdout", "ERROR: Node %d failed allocating a packed payload\n", TOS_NODE_ID);
+			dbg("debug", "ERROR: Node %d failed allocating a packed payload\n", TOS_NODE_ID);
 			return;
 		}
 		
@@ -307,7 +307,7 @@ implementation
 		
 		if (packet_payload == NULL)
 		{
-			dbg("stdout", "ERROR: Node %d failed allocating a packed payload\n", TOS_NODE_ID);
+			dbg("debug", "ERROR: Node %d failed allocating a packed payload\n", TOS_NODE_ID);
 			return;
 		}
 		
@@ -349,11 +349,11 @@ implementation
 	{
 		int i;
 		
-		dbg("stdout", "Node %d is sending the periodic update to node red\n", TOS_NODE_ID);
+		dbg("debug", "Node %d is sending the periodic update to node red\n", TOS_NODE_ID);
 
 		for(i = 0; i < NUM_OF_TOPICS; i++)
 		{
-			dbg("stdout", "%d:%d\n", i, latestValues[i]);
+			dbg_clear("node_red", "%d:%d\n", i, latestValues[i]);
 		}
 		//printfflush();
 	}
@@ -364,20 +364,20 @@ implementation
     void updateConnectedClients(uint16_t clientId){
 		int i = 0;
 		
-		dbg("stdout", "DEBUG: Client %d wants to connect\n", clientId);
+		dbg("debug", "DEBUG: Client %d wants to connect\n", clientId);
 
 		for (i=0; i < MAX_CLIENTS; i++)
         {
 			if (connectedClients[i] == clientId)
             {
-				dbg("stdout", "WARNING: The client %d is already connected to the PAN COORD\n", clientId);
+				dbg("debug", "WARNING: The client %d is already connected to the PAN COORD\n", clientId);
 				return;
 			}
 
 			if (connectedClients[i] == 0)
             {
 				connectedClients[i] = clientId;
-				dbg("stdout", "The client %d was added to the connected clients of the PAN COORD\n", clientId);
+				dbg("debug", "The client %d was added to the connected clients of the PAN COORD\n", clientId);
 				return;
 			}
 		}
@@ -391,7 +391,7 @@ implementation
 		{
 			if (subscriptions[i].clientId == clientId && subscriptions[i].topic == topic)
 			{
-				dbg("stdout", "WARNING: The client %d sent a subscribe request for a topic he is already subscribed to\n", clientId);
+				dbg("debug", "WARNING: The client %d sent a subscribe request for a topic he is already subscribed to\n", clientId);
 				return;
 			}
 
@@ -399,7 +399,7 @@ implementation
 			{
 				subscriptions[i].clientId = clientId;
 				subscriptions[i].topic = topic;
-				dbg("stdout", "The client %d subscribed to topic %d\n", clientId, topic);
+				dbg("debug", "The client %d subscribed to topic %d\n", clientId, topic);
 				return;
 			}
 		}
@@ -413,7 +413,7 @@ implementation
 		//check if I am the PAN coordinator, otherwise I shouldn't have received the message 
 		if (TOS_NODE_ID != PAN_COORDINATOR_ID)
         {
-			dbg("stdout", "ERROR: Node %d received a CON message but it is not a PAN COORD\n", TOS_NODE_ID);
+			dbg("debug", "ERROR: Node %d received a CON message but it is not a PAN COORD\n", TOS_NODE_ID);
 			return;
 		}
 		//I am the PAN coordinator update of the connected clients...
@@ -428,7 +428,7 @@ implementation
     {
         if (TOS_NODE_ID == PAN_COORDINATOR_ID)
 		{
-			dbg("stdout", "ERROR: Node %d is the pan coordinator and received a ConAck\n", TOS_NODE_ID);
+			dbg("debug", "ERROR: Node %d is the pan coordinator and received a ConAck\n", TOS_NODE_ID);
 			return;
 		}
 
@@ -441,7 +441,7 @@ implementation
 		
 		call PublishTimer.startPeriodic(PUBLISH_INTERVAL + NODES_DIFFERENT_DELAY[TOS_NODE_ID]);
 		
-		dbg("stdout", "Node %d started the publish timer for topic %d\n", TOS_NODE_ID, MY_PUBLISH_TOPIC);
+		dbg("debug", "Node %d started the publish timer for topic %d\n", TOS_NODE_ID, MY_PUBLISH_TOPIC);
 	}
 
 
@@ -452,7 +452,7 @@ implementation
 	
 		if (TOS_NODE_ID != PAN_COORDINATOR_ID)
 		{
-			dbg("stdout", "ERROR: Node %d is not the pan coordinator and received a subscribe request\n", TOS_NODE_ID);
+			dbg("debug", "ERROR: Node %d is not the pan coordinator and received a subscribe request\n", TOS_NODE_ID);
 			return;
 		}
 
@@ -465,11 +465,11 @@ implementation
 
 		if (!isClientConnected)
 		{
-			dbg("stdout", "ERROR: Node %d tried to subscribe without being connected\n", senderId);
+			dbg("debug", "ERROR: Node %d tried to subscribe without being connected\n", senderId);
 			return;
 		}
 
-		dbg("stdout", "DEBUG: Node %d subscribe request content: Topic 0: %d | Topic 1: %d | Topic 2: %d\n",
+		dbg("debug", "DEBUG: Node %d subscribe request content: Topic 0: %d | Topic 1: %d | Topic 2: %d\n",
 		senderId,
 		subToTopic0,
 		subToTopic1,
@@ -491,7 +491,7 @@ implementation
 	{
 		if (TOS_NODE_ID == PAN_COORDINATOR_ID)
 		{
-			dbg("stdout", "ERROR: Node %d is the pan coordinator and received a SubAck\n", TOS_NODE_ID);
+			dbg("debug", "ERROR: Node %d is the pan coordinator and received a SubAck\n", TOS_NODE_ID);
 			return;
 		}
 
@@ -518,7 +518,7 @@ implementation
 
 		}
 		else{
-			dbg("stdout", "Client %d received publish. Topic: %d, Value: %d\n", TOS_NODE_ID, topic, value);
+			dbg("debug", "Client %d received publish. Topic: %d, Value: %d\n", TOS_NODE_ID, topic, value);
 		}
 
 	}
@@ -533,13 +533,13 @@ implementation
 		
 		if (len != sizeof(PB_msg_t)) 
 		{
-			dbg("stdout", "ERROR: Node %d received wrong lenght packet\n", TOS_NODE_ID);
+			dbg("debug", "ERROR: Node %d received wrong lenght packet\n", TOS_NODE_ID);
 			return bufPtr;
 		}
 
 		packet_payload = (PB_msg_t*)payload;
 		
-		dbg("stdout", "Node %d received packet of Type %d | SenderId = %d | Topic = %d | Value = %d | SubTopics = {%d,%d,%d}\n",
+		dbg("debug", "Node %d received packet of Type %d | SenderId = %d | Topic = %d | Value = %d | SubTopics = {%d,%d,%d}\n",
 		TOS_NODE_ID,
 		packet_payload->Type,
 		packet_payload->SenderId,

@@ -7,6 +7,8 @@ print("********************************************")
 import sys
 import time
 
+import socket
+
 from TOSSIM import *
 
 NUM_OF_NODES = 9
@@ -28,17 +30,30 @@ print("Initializing simulator....")
 t.init()
 
 
+debug_outfile = "debug_files/debug_outfile.txt"
+print("Saving simulation output to:", debug_outfile)
+debug_out = open(debug_outfile, "w")
+
 simulation_outfile = "debug_files/simulation.txt"
 print("Saving simulation output to:", simulation_outfile)
 simulation_out = open(simulation_outfile, "w")
 
-out = sys.stdout
+node_red_file = "debug_files/node_red_outfile.txt"
+print("Saving node red output to: ", node_red_file)
+node_red_out = open(node_red_file, "w")
+
+
+#out = sys.stdout
 
 #Add debug channel
-print("Activate debug message for 'stdout' that will output to stdout general debug data")
-t.addChannel("stdout", simulation_out)
-print("Activate debug message for 'simulation' that will output to a file only the useful simulation info")
+print("Activate debug message for 'debug' that will output to ", debug_outfile," general debug data")
+t.addChannel("debug", simulation_out)
+
+print("Activate debug message for 'simulation' that will output to ", simulation_outfile," the useful simulation info")
 t.addChannel("simulation", simulation_out)
+
+print("Activate debug message for 'simulation' that will output to ", node_red_file," the useful simulation info")
+t.addChannel("node_red", node_red_out)
 
 
 bootTime = 0
@@ -94,8 +109,26 @@ for i in range(1, NUM_OF_NODES + 1):
 
 print("Start simulation with TOSSIM! \n\n\n")
 
+
+nextLine = 0
+
+
 for i in range(0,100000):
 	t.runNextEvent()
+	
+	with open(node_red_file, 'r') as NRfile:
+	
+		lines = NRfile.readlines()
+	
+		if lines and len(lines) > nextLine:
+			
+			sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+			
+			sock.sendto(lines[nextLine], ("127.0.0.1", 1883))
+			
+			sock.close()
+			
+			nextLine += 1
 	
 	
 print("\n\n\nSimulation finished!")
