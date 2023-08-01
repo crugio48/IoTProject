@@ -1,8 +1,5 @@
 // This file defines the wiring of the components with the interfaces used in this application
 
-#define NEW_PRINTF_SEMANTICS
-#include "printf.h"
-
 #include "pub_sub_message.h"
 
 configuration PubSubApp {}
@@ -15,7 +12,6 @@ implementation
 	components new AMSenderC(AM_PB_MSG);			// for sending messages
 	components new AMReceiverC(AM_PB_MSG);		// for receiving messages
 	components ActiveMessageC;			// for managing messages and packets
-	components SerialPrintfC;			// For the printf
 	components RandomC;
 
 	// Custom components:

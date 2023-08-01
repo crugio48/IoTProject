@@ -9,7 +9,7 @@ import time
 
 from TOSSIM import *
 
-NUM_OF_NODES = 2
+NUM_OF_NODES = 9
 
 t = Tossim([])
 
@@ -36,7 +36,7 @@ out = sys.stdout
 
 #Add debug channel
 print("Activate debug message for 'stdout' that will output to stdout general debug data")
-t.addChannel("stdout", out)
+t.addChannel("stdout", simulation_out)
 print("Activate debug message for 'simulation' that will output to a file only the useful simulation info")
 t.addChannel("simulation", simulation_out)
 
@@ -45,7 +45,7 @@ bootTime = 0
 
 
 for i in range(1, NUM_OF_NODES + 1):
-    print("Creating node " + i + "...")
+    print("Creating node ", i, " ...")
     node = t.getNode(i)
     node.bootAtTime(bootTime)
     print(">>>Will boot at time",  bootTime, "[sec]")
@@ -96,5 +96,6 @@ print("Start simulation with TOSSIM! \n\n\n")
 
 for i in range(0,100000):
 	t.runNextEvent()
+	
 	
 print("\n\n\nSimulation finished!")
