@@ -536,7 +536,7 @@ implementation
 
 		packet_payload = (PB_msg_t*)payload;
 		
-		dbg("debug", "Node %d received packet of Type %d | SenderId = %d | Topic = %d | Value = %d | SubTopics = {%d,%d,%d}\n",
+		dbg("debug", "DEBUG: Node %d received packet of Type %d | SenderId = %d | Topic = %d | Value = %d | SubTopics = {%d,%d,%d}\n",
 		TOS_NODE_ID,
 		packet_payload->Type,
 		packet_payload->SenderId,
