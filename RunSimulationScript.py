@@ -30,7 +30,7 @@ print("Initializing simulator....")
 t.init()
 
 
-debug_outfile = "debug_files/debug_outfile.txt"
+debug_outfile = "debug_files/simulation.log"
 print("Saving simulation output to:", debug_outfile)
 debug_out = open(debug_outfile, "w")
 
@@ -108,7 +108,7 @@ nextLine = 0
 prevElapsedTime = 0
 
 
-for i in range(0,100000):
+for i in range(0,10000):
 	t.runNextEvent()
 
     # sending to node red the periodic update of the pan coordinator
@@ -122,7 +122,7 @@ for i in range(0,100000):
 
     # computing the simulated time to run the simulation at real time
 	elapsedTime = float(t.time()) / float(t.ticksPerSecond())
-	print("elapsed time:", elapsedTime)
+	print("elapsed time: ", elapsedTime)
 	time.sleep(elapsedTime - prevElapsedTime)
 	prevElapsedTime = elapsedTime
 	
