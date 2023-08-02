@@ -34,10 +34,6 @@ debug_outfile = "debug_files/debug_outfile.txt"
 print("Saving simulation output to:", debug_outfile)
 debug_out = open(debug_outfile, "w")
 
-simulation_outfile = "debug_files/simulation.txt"
-print("Saving simulation output to:", simulation_outfile)
-simulation_out = open(simulation_outfile, "w")
-
 node_red_file = "debug_files/node_red_outfile.txt"
 print("Saving node red output to: ", node_red_file)
 node_red_out = open(node_red_file, "w")
@@ -48,9 +44,6 @@ node_red_out = open(node_red_file, "w")
 #Add debug channel
 print("Activate debug message for 'debug' that will output to ", debug_outfile," general debug data")
 t.addChannel("debug", debug_out)
-
-print("Activate debug message for 'simulation' that will output to ", simulation_outfile," the useful simulation info")
-t.addChannel("simulation", simulation_out)
 
 print("Activate debug message for 'simulation' that will output to ", node_red_file," the useful simulation info")
 t.addChannel("node_red", node_red_out)
