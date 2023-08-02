@@ -117,28 +117,20 @@ prevElapsedTime = 0
 
 for i in range(0,100000):
 	t.runNextEvent()
-	
+
+    # sending to node red the periodic update of the pan coordinator
 	with open(node_red_file, 'r') as NRfile:
-	
 		lines = NRfile.readlines()
-	
 		if lines and len(lines) > nextLine:
-			
 			sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-			
 			sock.sendto(lines[nextLine], ("127.0.0.1", 1883))
-			
 			sock.close()
-			
 			nextLine += 1
-	
+
+    # computing the simulated time to run the simulation at real time
 	elapsedTime = float(t.time()) / float(t.ticksPerSecond())
-	
-	print(elapsedTime)
-	
+	print("elapsed time:", elapsedTime)
 	time.sleep(elapsedTime - prevElapsedTime)
-	
 	prevElapsedTime = elapsedTime
-	
 	
 print("\n\n\nSimulation finished!")
