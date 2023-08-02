@@ -347,10 +347,8 @@ implementation
 
 	event void NodeRedTimer.fired()
 	{
-		int i;
 		
-		dbg("debug", "Node %d is sending the periodic update to node red\n", TOS_NODE_ID);
-		
+		dbg("debug", "Node %d sending periodic update with content: %d:%d,%d:%d,%d:%d\n", TOS_NODE_ID,  0, latestValues[0], 1, latestValues[1], 2, latestValues[2]);	
 		dbg_clear("node_red", "%d:%d,%d:%d,%d:%d\n", 0, latestValues[0], 1, latestValues[1], 2, latestValues[2]);
 
 	}
