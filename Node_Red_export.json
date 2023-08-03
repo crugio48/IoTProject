@@ -1,0 +1,119 @@
+[
+    {
+        "id": "6b01cbaa.8cb174",
+        "type": "tab",
+        "label": "read TinyOS",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "f8ffee60.a372a",
+        "type": "debug",
+        "z": "6b01cbaa.8cb174",
+        "name": "",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "x": 850,
+        "y": 280,
+        "wires": []
+    },
+    {
+        "id": "4b73e5e4.b1926c",
+        "type": "function",
+        "z": "6b01cbaa.8cb174",
+        "name": "",
+        "func": "var CHANNEL_ID = \"2232186\";\n\nlet r = /^([0-9]):([0-9]+),([0-9]):([0-9]+),([0-9]):([0-9]+)(\\n)$/\n\nlet result = r.exec(msg.payload)\n\nif (result === null)\n{\n    msg.check = \"notAMatch\";\n    \n    return msg;\n}\nelse\n{\n    \n    msg.topic = 'channels/' + CHANNEL_ID + '/publish/';\n    msg.payload = 'field1=' + result[2] + '&field2=' + result[4] + '&field3=' + result[6] + '&status=MQTTPUBLISH';\n    \n    msg.check =  \"match\";\n    \n    return msg;\n}\n\n",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 390,
+        "y": 200,
+        "wires": [
+            [
+                "71a33c10.9f7994"
+            ]
+        ]
+    },
+    {
+        "id": "71a33c10.9f7994",
+        "type": "switch",
+        "z": "6b01cbaa.8cb174",
+        "name": "",
+        "property": "check",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "match",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 1,
+        "x": 590,
+        "y": 200,
+        "wires": [
+            [
+                "f8ffee60.a372a",
+                "b4f8b841.220858"
+            ]
+        ]
+    },
+    {
+        "id": "ed5e5b36.ed32a8",
+        "type": "udp in",
+        "z": "6b01cbaa.8cb174",
+        "name": "",
+        "iface": "",
+        "port": "1883",
+        "ipv": "udp4",
+        "multicast": "false",
+        "group": "",
+        "datatype": "utf8",
+        "x": 180,
+        "y": 200,
+        "wires": [
+            [
+                "4b73e5e4.b1926c"
+            ]
+        ]
+    },
+    {
+        "id": "b4f8b841.220858",
+        "type": "mqtt out",
+        "z": "6b01cbaa.8cb174",
+        "name": "",
+        "topic": "channels/2232186/publish",
+        "qos": "0",
+        "retain": "",
+        "broker": "89aa7b04.9ce0c8",
+        "x": 910,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "89aa7b04.9ce0c8",
+        "type": "mqtt-broker",
+        "z": "",
+        "name": "Thingspeak IoT",
+        "broker": "mqtt3.thingspeak.com",
+        "port": "1883",
+        "clientid": "BhkOGh4fAQEzFB4zAyMpGjU",
+        "usetls": false,
+        "compatmode": true,
+        "keepalive": "60",
+        "cleansession": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "closeTopic": "",
+        "closeQos": "0",
+        "closePayload": "",
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": ""
+    }
+]
