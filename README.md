@@ -54,7 +54,7 @@ To make the simulation run in real time we call the `Time.sleep()` after each ev
 
 ## Node-RED Integration
 
-Below an image on the setup in Node-Red
+Below an image of the setup in Node-Red
 
 ![Alt text](https://github.com/crugio48/IoTProject/blob/main/img/node-red.png)
 
